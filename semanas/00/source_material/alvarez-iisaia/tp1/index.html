@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fecha Sudoku</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+    :root {
+      --blue-950: #102a43;
+      --blue-800: #174a73;
+      --blue-600: #287bb5;
+      --blue-100: #dceefa;
+      --blue-50: #f2f8fc;
+      --gray-900: #243746;
+      --gray-600: #657786;
+      --gray-300: #cbd5dc;
+      --gray-100: #e9eef2;
+      --white: #fff;
+      --success: #247a55;
+      --danger: #b44747;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--gray-900);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(76, 154, 207, .13), transparent 30%),
+        linear-gradient(180deg, #f7fafc 0%, #edf3f7 100%);
+      font-family: "DM Sans", system-ui, sans-serif;
+    }
+
+    header {
+      padding: 34px 20px 30px;
+      color: var(--white);
+      text-align: center;
+      background: linear-gradient(130deg, var(--blue-950), var(--blue-600));
+      box-shadow: 0 8px 28px rgba(16, 42, 67, .16);
+    }
+
+    h1 { margin: 0; font-size: clamp(1.55rem, 4vw, 2.25rem); letter-spacing: -.035em; }
+    main {
+      width: min(94%, 650px);
+      margin: 34px auto;
+      padding: clamp(22px, 5vw, 42px);
+      border: 1px solid rgba(203, 213, 220, .75);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, .92);
+      box-shadow: 0 22px 60px rgba(40, 63, 80, .11);
+    }
+
+    .top-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 18px;
+    }
+
+    .top-actions button {
+      min-width: 0;
+      padding: 9px 15px;
+      font-size: .84rem;
+    }
+
+    .date-row {
+      display: grid;
+      grid-template-columns: auto 24px auto 24px auto;
+      align-items: end;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .date-part { text-align: center; }
+    .date-part h2 {
+      margin: 0 0 9px;
+      color: var(--gray-600);
+      font-size: .76rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .digits { display: flex; gap: 7px; }
+
+    .digit {
+      display: grid;
+      width: clamp(34px, 8vw, 46px);
+      aspect-ratio: .82;
+      place-items: center;
+      border: 1.5px solid var(--gray-300);
+      border-radius: 9px;
+      background: #fbfdfe;
+      font-size: 1.35rem;
+      font-weight: 700;
+      transition: .2s ease;
+    }
+
+    .digit.active {
+      border-color: var(--blue-600);
+      background: var(--blue-50);
+      box-shadow: 0 0 0 4px rgba(40, 123, 181, .12);
+      transform: translateY(-2px);
+    }
+
+    .digit.done { color: var(--blue-800); background: #eef7fc; }
+    .slash { padding-bottom: 9px; color: var(--gray-300); font-size: 1.8rem; font-weight: 400; }
+
+    .challenge {
+      margin-top: 32px;
+      padding-top: 28px;
+      border-top: 1px solid var(--gray-100);
+      text-align: center;
+    }
+
+    .completion-controls {
+      display: none;
+      margin-top: 24px;
+      padding-top: 22px;
+      border-top: 1px solid var(--gray-100);
+      text-align: center;
+    }
+
+    .completion-controls.visible { display: block; animation: reveal .3s ease both; }
+
+    .step {
+      margin: 0 0 4px;
+      color: var(--blue-600);
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .question { margin: 0; color: var(--blue-950); font-size: 1.2rem; font-weight: 700; }
+    .hint { min-height: 22px; margin: 8px 0 18px; color: var(--gray-600); font-size: .88rem; }
+
+    .choice-row { display: flex; justify-content: center; gap: 12px; }
+
+    button {
+      min-width: 108px;
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 22px;
+      font: 700 .95rem "DM Sans", sans-serif;
+      cursor: pointer;
+      transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:focus-visible, input:focus-visible { outline: 3px solid rgba(40, 123, 181, .28); outline-offset: 2px; }
+    .primary { color: white; background: var(--blue-600); box-shadow: 0 7px 16px rgba(40, 123, 181, .22); }
+    .primary:hover { background: var(--blue-800); }
+    .secondary { color: var(--blue-800); background: var(--blue-100); }
+
+    .sudoku-wrap { display: none; }
+    .sudoku-wrap.visible { display: block; animation: reveal .28s ease both; }
+
+    .sudoku {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      width: min(100%, 405px);
+      margin: 0 auto 20px;
+      overflow: hidden;
+      border: 3px solid var(--blue-950);
+      border-radius: 8px;
+      background: var(--blue-950);
+      gap: 1px;
+    }
+
+    .cell {
+      display: grid;
+      aspect-ratio: 1;
+      place-items: center;
+      background: white;
+      color: var(--gray-900);
+      font-size: clamp(.84rem, 3vw, 1.05rem);
+      font-weight: 600;
+    }
+
+    .cell:nth-child(3n):not(:nth-child(9n)) { border-right: 2px solid var(--blue-950); }
+    .cell:nth-child(n+19):nth-child(-n+27),
+    .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2px solid var(--blue-950); }
+
+    .cell.blank { background: #f5f9fc; }
+    .cell input {
+      width: 100%; height: 100%; border: 0; padding: 0;
+      color: var(--blue-800); background: transparent;
+      text-align: center; font: 700 1.05rem "DM Sans", sans-serif;
+    }
+    .cell input.invalid { color: var(--danger); animation: shake .22s linear; }
+    .cell input.correct { color: var(--success); }
+
+    #feedback { min-height: 22px; margin: -7px 0 14px; font-size: .88rem; font-weight: 600; }
+    #feedback.error { color: var(--danger); }
+    #feedback.success { color: var(--success); }
+
+    .complete { display: none; padding: 6px 0 0; }
+    .complete.visible { display: block; animation: reveal .3s ease both; }
+    .complete .date-result { margin: 10px 0 18px; color: var(--blue-950); font-size: 1.7rem; font-weight: 700; }
+    .complete .date-result.error { color: var(--danger); font-size: 1.05rem; line-height: 1.5; }
+    .link-button { min-width: 0; padding: 5px; color: var(--gray-600); background: transparent; font-size: .85rem; }
+
+    @keyframes reveal { from { opacity: 0; transform: translateY(8px); } }
+    @keyframes shake { 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+
+    @media (max-width: 520px) {
+      main { width: calc(100% - 24px); margin: 20px auto; border-radius: 18px; }
+      .date-row { gap: 5px; }
+      .digits { gap: 4px; }
+      .slash { width: 14px; font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Ingrese su fecha de nacimiento</h1>
+  </header>
+
+  <main>
+    <div class="top-actions">
+      <button class="secondary" id="restart" type="button">Reiniciar</button>
+    </div>
+
+    <section class="date-row" aria-label="Fecha de nacimiento">
+      <div class="date-part"><h2>Día</h2><div class="digits" id="day"></div></div>
+      <span class="slash" aria-hidden="true">/</span>
+      <div class="date-part"><h2>Mes</h2><div class="digits" id="month"></div></div>
+      <span class="slash" aria-hidden="true">/</span>
+      <div class="date-part"><h2>Año</h2><div class="digits" id="year"></div></div>
+    </section>
+
+    <section class="completion-controls" id="completionControls">
+      <button class="primary" id="finish" type="button">Completar</button>
+      <div class="complete" id="complete">
+        <p class="date-result" id="dateResult"></p>
+      </div>
+    </section>
+
+    <section class="challenge" id="challenge" aria-live="polite">
+      <p class="step" id="step">Dígito 1 de 8</p>
+      <p class="question" id="question">¿El dígito es cero?</p>
+      <p class="hint" id="hint">Seleccione una opción para continuar.</p>
+      <div class="choice-row" id="choices">
+        <button class="secondary" id="yes" type="button">Sí</button>
+        <button class="primary" id="no" type="button">No</button>
+      </div>
+
+      <div class="sudoku-wrap" id="sudokuWrap">
+        <div class="sudoku" id="sudoku" aria-label="Sudoku por completar"></div>
+        <p id="feedback" role="status"></p>
+        <button class="primary" id="add" type="button">Agregar</button>
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    const totalDigits = 8;
+    let current = 0;
+    let entered = [];
+    let solution = [];
+    let missing = [];
+
+    const $ = (selector) => document.querySelector(selector);
+    const shuffle = (items) => {
+      const copy = [...items];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    };
+
+    function createBoxes() {
+      [["day", 2], ["month", 2], ["year", 4]].forEach(([id, count]) => {
+        const group = document.getElementById(id);
+        group.innerHTML = "";
+        for (let i = 0; i < count; i++) {
+          const box = document.createElement("span");
+          box.className = "digit";
+          box.textContent = "·";
+          box.setAttribute("aria-label", "Dígito sin completar");
+          group.appendChild(box);
+        }
+      });
+      updateBoxes();
+    }
+
+    function allBoxes() { return [...document.querySelectorAll(".digit")]; }
+
+    function updateBoxes() {
+      allBoxes().forEach((box, index) => {
+        box.textContent = entered[index] ?? "·";
+        box.classList.toggle("done", index < entered.length);
+        box.classList.toggle("active", index === current && current < totalDigits);
+        box.setAttribute("aria-label", index < entered.length ? `Dígito ${index + 1}: ${entered[index]}` : `Dígito ${index + 1} sin completar`);
+      });
+    }
+
+    function makeSolution() {
+      const base = [0, 1, 2];
+      const rows = shuffle(base).flatMap(band => shuffle(base).map(row => band * 3 + row));
+      const cols = shuffle(base).flatMap(stack => shuffle(base).map(col => stack * 3 + col));
+      const nums = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      return rows.flatMap(r => cols.map(c => nums[(r * 3 + Math.floor(r / 3) + c) % 9]));
+    }
+
+    function buildSudoku() {
+      solution = makeSolution();
+      missing = [];
+      for (let digit = 1; digit <= 9; digit++) {
+        const positions = solution.map((value, index) => value === digit ? index : -1).filter(index => index >= 0);
+        missing.push(positions[Math.floor(Math.random() * positions.length)]);
+      }
+      const board = $("#sudoku");
+      board.innerHTML = "";
+
+      solution.forEach((value, index) => {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        if (missing.includes(index)) {
+          cell.classList.add("blank");
+          const input = document.createElement("input");
+          input.inputMode = "numeric";
+          input.maxLength = 1;
+          input.dataset.index = index;
+          input.setAttribute("aria-label", "Casilla vacía");
+          input.addEventListener("input", (event) => {
+            event.target.value = event.target.value.replace(/[^1-9]/g, "").slice(-1);
+            event.target.classList.remove("invalid", "correct");
+            $("#feedback").textContent = "";
+          });
+          cell.appendChild(input);
+        } else {
+          cell.textContent = value;
+        }
+        board.appendChild(cell);
+      });
+      const inputs = [...board.querySelectorAll("input")];
+      inputs.forEach(input => input.addEventListener("input", () => {
+        if (!input.value) return;
+        inputs.forEach(other => {
+          if (other !== input) {
+            other.value = "";
+            other.classList.remove("invalid", "correct");
+          }
+        });
+      }));
+      const first = board.querySelector("input");
+      if (first) first.focus();
+    }
+
+    function showQuestion() {
+      $("#step").textContent = `Dígito ${current + 1} de ${totalDigits}`;
+      $("#question").textContent = "¿El dígito es cero?";
+      $("#hint").textContent = "Seleccione una opción para continuar.";
+      $("#choices").style.display = "flex";
+      $("#sudokuWrap").classList.remove("visible");
+      $("#feedback").textContent = "";
+      updateBoxes();
+    }
+
+    function acceptDigit(value) {
+      entered.push(String(value));
+      current++;
+      updateBoxes();
+      if (current === totalDigits) readyToComplete(); else showQuestion();
+    }
+
+    function readyToComplete() {
+      $("#step").style.display = "none";
+      $("#question").style.display = "none";
+      $("#hint").style.display = "none";
+      $("#choices").style.display = "none";
+      $("#completionControls").classList.add("visible");
+    }
+
+    function finish() {
+      $("#challenge").style.display = "none";
+      $("#finish").style.display = "none";
+      const date = `${entered.slice(0, 2).join("")}/${entered.slice(2, 4).join("")}/${entered.slice(4).join("")}`;
+      const day = Number(entered.slice(0, 2).join(""));
+      const month = Number(entered.slice(2, 4).join(""));
+      const year = Number(entered.slice(4).join(""));
+      const candidate = new Date(2000, month - 1, day);
+      candidate.setFullYear(year);
+      const valid = year >= 1 && month >= 1 && month <= 12 && day >= 1 &&
+        candidate.getFullYear() === year &&
+        candidate.getMonth() === month - 1 &&
+        candidate.getDate() === day;
+      const result = $("#dateResult");
+      result.classList.toggle("error", !valid);
+      result.textContent = valid
+        ? `La fecha ingresada es: ${date}`
+        : "La fecha ingresada no es válida. Presione Reiniciar e ingrésela nuevamente.";
+      $("#complete").classList.add("visible");
+    }
+
+    $("#yes").addEventListener("click", () => acceptDigit(0));
+    $("#no").addEventListener("click", () => {
+      $("#choices").style.display = "none";
+      $("#hint").textContent = "Ingrese un solo número en cualquiera de las casillas vacías respetando las reglas del sudoku.";
+      buildSudoku();
+      $("#sudokuWrap").classList.add("visible");
+    });
+
+    $("#add").addEventListener("click", () => {
+      const inputs = [...document.querySelectorAll(".cell input")];
+      const answered = inputs.find(input => input.value);
+      const valid = Boolean(answered) && Number(answered.value) === solution[Number(answered.dataset.index)];
+      inputs.forEach(input => input.classList.remove("invalid", "correct"));
+      if (answered) answered.classList.add(valid ? "correct" : "invalid");
+      const feedback = $("#feedback");
+      feedback.className = valid ? "success" : "error";
+      feedback.textContent = valid ? "¡Sudoku correcto!" : "Revise las casillas marcadas e intente nuevamente.";
+      if (valid) setTimeout(() => acceptDigit(Number(answered.value)), 350);
+      else (answered || inputs[0])?.focus();
+    });
+
+    $("#finish").addEventListener("click", finish);
+
+    $("#restart").addEventListener("click", () => {
+      current = 0; entered = [];
+      $("#complete").classList.remove("visible");
+      $("#dateResult").classList.remove("error");
+      $("#dateResult").textContent = "";
+      $("#completionControls").classList.remove("visible");
+      $("#finish").style.display = "inline-block";
+      $("#challenge").style.display = "block";
+      $("#step").style.display = "block";
+      $("#question").style.display = "block";
+      $("#hint").style.display = "block";
+      createBoxes();
+      showQuestion();
+    });
+
+    createBoxes();
+    showQuestion();
+  </script>
+</body>
+</html>
