@@ -32,7 +32,7 @@ Constraints:
 
 ---
 
-## 2 — Iterar sobre el estado: reordenar las canaletas
+## 2 — Simplificar la resolución del sudoku
 
 ```
 Elimina el párrafo del header.
@@ -50,7 +50,7 @@ Cuando estén completadas todas las casillas, muestra un botón "Completar" deba
 
 ---
 
-## 3 — Envolver el captcha en una página anfitriona
+## 3 — Validar y reiniciar
 
 ```
 Tienes que validar la fecha final, si es una fecha inválida debes mostrar un mensaje de error y pedir que la ingrese de nuevo.
