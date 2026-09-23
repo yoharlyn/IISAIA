@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Catálogo de productos odontológicos">
+    <title>Catálogo | DentalHub</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+    <script type="module" src="/assets/js/catalog.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="/catalogo" aria-label="DentalHub, inicio">
+        <span class="brand-mark" aria-hidden="true">D</span>
+        <span>DentalHub</span>
+      </a>
+      <div class="user-actions">
+        <span id="user-name" class="user-name">Cargando sesión…</span>
+        <button id="logout-button" class="secondary-button" type="button">Cerrar sesión</button>
+      </div>
+    </header>
+
+    <div class="app-layout">
+      <nav class="side-nav" aria-label="Navegación principal">
+        <a class="nav-link active" href="/catalogo" aria-current="page">Catálogo de productos</a>
+      </nav>
+
+      <main class="catalog-main" id="main-content">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">Odontólogo</p>
+            <h1>Catálogo de productos</h1>
+            <p class="muted">Consultá disponibilidad, precios y especificaciones.</p>
+          </div>
+        </div>
+
+        <form id="filters-form" class="filters" role="search">
+          <div class="field search-field">
+            <label for="search">Buscar</label>
+            <input id="search" name="q" type="search" maxlength="100" placeholder="Nombre, SKU, marca o fabricante">
+          </div>
+          <div class="field">
+            <label for="category">Categoría</label>
+            <select id="category" name="category_id">
+              <option value="">Todas</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="implant-filter">Tipo</label>
+            <select id="implant-filter" name="is_implant">
+              <option value="">Todos</option>
+              <option value="true">Implantes</option>
+              <option value="false">Otros productos</option>
+            </select>
+          </div>
+          <button class="primary-button filter-button" type="submit">Aplicar filtros</button>
+        </form>
+
+        <p id="catalog-status" class="feedback catalog-status" role="status" aria-live="polite">Cargando productos…</p>
+        <section id="product-grid" class="product-grid" aria-label="Productos" aria-busy="true"></section>
+
+        <nav class="pagination" aria-label="Paginación del catálogo">
+          <button id="previous-page" class="secondary-button" type="button">Anterior</button>
+          <span id="page-label">Página 1</span>
+          <button id="next-page" class="secondary-button" type="button">Siguiente</button>
+        </nav>
+      </main>
+    </div>
+  </body>
+</html>

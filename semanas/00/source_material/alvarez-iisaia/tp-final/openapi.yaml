@@ -1,0 +1,477 @@
+openapi: 3.1.0
+info:
+  title: Catálogo odontológico API
+  version: 1.0.0
+paths:
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Authentication
+      summary: Login
+      operationId: login_api_v1_auth_login_post
+      parameters:
+      - name: X-CSRF-Protection
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Csrf-Protection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+          headers:
+            Set-Cookie:
+              description: Cookie dentist_session; HttpOnly; SameSite=Lax; Path=/;
+                Secure in production.
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Too Many Requests
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - Authentication
+      summary: Logout
+      operationId: logout_api_v1_auth_logout_post
+      parameters:
+      - name: X-CSRF-Protection
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Csrf-Protection
+      responses:
+        '204':
+          description: Successful Response
+          headers:
+            Set-Cookie:
+              description: Expires the dentist_session cookie using the original attributes.
+              schema:
+                type: string
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/me:
+    get:
+      tags:
+      - Authentication
+      summary: Me
+      operationId: me_api_v1_auth_me_get
+      parameters:
+      - name: dentist_session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dentist Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicUser'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/products:
+    get:
+      tags:
+      - Products
+      summary: Products
+      operationId: products_api_v1_products_get
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: Q
+      - name: category_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: 1
+          - type: 'null'
+          title: Category Id
+      - name: is_implant
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Implant
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 12
+          title: Page Size
+      - name: dentist_session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dentist Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+components:
+  schemas:
+    CategoryResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: CategoryResponse
+    ErrorBody:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+        details:
+          anyOf:
+          - {}
+          - type: 'null'
+          title: Details
+      type: object
+      required:
+      - code
+      - message
+      title: ErrorBody
+    ErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+      type: object
+      required:
+      - error
+      title: ErrorResponse
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ImplantSpecsResponse:
+      properties:
+        diameter_mm:
+          type: string
+          title: Diameter Mm
+        length_mm:
+          type: string
+          title: Length Mm
+        connection_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Type
+        material:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Material
+        surface_treatment:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Surface Treatment
+      type: object
+      required:
+      - diameter_mm
+      - length_mm
+      - connection_type
+      - material
+      - surface_treatment
+      title: ImplantSpecsResponse
+    LoginRequest:
+      properties:
+        username:
+          type: string
+          maxLength: 50
+          minLength: 3
+          title: Username
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Password
+      type: object
+      required:
+      - username
+      - password
+      title: LoginRequest
+    LoginResponse:
+      properties:
+        user:
+          $ref: '#/components/schemas/PublicUser'
+      type: object
+      required:
+      - user
+      title: LoginResponse
+    PaginationResponse:
+      properties:
+        page:
+          type: integer
+          title: Page
+        page_size:
+          type: integer
+          title: Page Size
+        total_items:
+          type: integer
+          title: Total Items
+        total_pages:
+          type: integer
+          title: Total Pages
+      type: object
+      required:
+      - page
+      - page_size
+      - total_items
+      - total_pages
+      title: PaginationResponse
+    ProductListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ProductResponse'
+          type: array
+          title: Items
+        pagination:
+          $ref: '#/components/schemas/PaginationResponse'
+        available_categories:
+          items:
+            $ref: '#/components/schemas/CategoryResponse'
+          type: array
+          title: Available Categories
+      type: object
+      required:
+      - items
+      - pagination
+      - available_categories
+      title: ProductListResponse
+    ProductResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        sku:
+          type: string
+          title: Sku
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        brand:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Brand
+        category:
+          $ref: '#/components/schemas/CategoryResponse'
+        manufacturer_name:
+          type: string
+          title: Manufacturer Name
+        price_cents:
+          type: integer
+          title: Price Cents
+        stock:
+          type: integer
+          title: Stock
+        is_implant:
+          type: boolean
+          title: Is Implant
+        implant_specs:
+          anyOf:
+          - $ref: '#/components/schemas/ImplantSpecsResponse'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - sku
+      - name
+      - description
+      - brand
+      - category
+      - manufacturer_name
+      - price_cents
+      - stock
+      - is_implant
+      - implant_specs
+      title: ProductResponse
+    PublicUser:
+      properties:
+        id:
+          type: integer
+          title: Id
+        username:
+          type: string
+          title: Username
+        email:
+          type: string
+          title: Email
+        first_name:
+          type: string
+          title: First Name
+        last_name:
+          type: string
+          title: Last Name
+        role:
+          type: string
+          const: DENTIST
+          title: Role
+      type: object
+      required:
+      - id
+      - username
+      - email
+      - first_name
+      - last_name
+      - role
+      title: PublicUser
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
