@@ -1,0 +1,771 @@
+openapi: 3.1.0
+info:
+  title: Music and Playlists API
+  version: 1.0.0
+  description: API REST para gestionar usuarios, artistas, álbumes, canciones y playlists.
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Servidor local de desarrollo
+
+tags:
+  - name: Artists
+  - name: Albums
+  - name: Songs
+  - name: Users
+  - name: Playlists
+
+paths:
+  /artists:
+    get:
+      tags: [Artists]
+      summary: Listar artistas
+      operationId: listArtists
+      responses:
+        "200":
+          description: Lista de artistas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Artist"
+              example:
+                - id: 11111111-1111-4111-8111-111111111111
+                  name: Soda Stereo
+                - id: 22222222-2222-4222-8222-222222222222
+                  name: Charly García
+    post:
+      tags: [Artists]
+      summary: Crear un artista
+      operationId: createArtist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArtistInput"
+            example:
+              name: Soda Stereo
+      responses:
+        "201":
+          description: Artista creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Artist"
+              example:
+                id: 11111111-1111-4111-8111-111111111111
+                name: Soda Stereo
+        "400":
+          description: Falta el nombre del artista o su valor es inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: VALIDATION_ERROR
+                message: El nombre del artista es obligatorio.
+                details:
+                  - El campo name no puede estar vacío.
+
+  /artists/{artistId}/albums:
+    parameters:
+      - $ref: "#/components/parameters/ArtistId"
+    get:
+      tags: [Albums]
+      summary: Listar los álbumes de un artista
+      operationId: listArtistAlbums
+      responses:
+        "200":
+          description: Lista de álbumes del artista
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Album"
+              example:
+                - id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+                  title: Canción Animal
+                  release_date: "1990-08-07"
+                  artist_id: 11111111-1111-4111-8111-111111111111
+                - id: bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb
+                  title: Dynamo
+                  release_date: "1992-10-26"
+                  artist_id: 11111111-1111-4111-8111-111111111111
+        "404":
+          description: El artista no existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: ARTIST_NOT_FOUND
+                message: No se encontró el artista solicitado.
+                details:
+                  - El artistId no corresponde a un artista existente.
+    post:
+      tags: [Albums]
+      summary: Crear un álbum para un artista
+      operationId: createArtistAlbum
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlbumInput"
+            example:
+              title: Canción Animal
+              release_date: "1990-08-07"
+      responses:
+        "201":
+          description: Álbum creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Album"
+              example:
+                id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+                title: Canción Animal
+                release_date: "1990-08-07"
+                artist_id: 11111111-1111-4111-8111-111111111111
+        "400":
+          description: Falta el título del álbum o alguno de sus datos es inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: VALIDATION_ERROR
+                message: Los datos del álbum no son válidos.
+                details:
+                  - El campo title es obligatorio.
+        "404":
+          description: El artista no existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: ARTIST_NOT_FOUND
+                message: No se encontró el artista solicitado.
+                details:
+                  - El artistId no corresponde a un artista existente.
+
+  /albums/{albumId}/songs:
+    parameters:
+      - $ref: "#/components/parameters/AlbumId"
+    get:
+      tags: [Songs]
+      summary: Listar las canciones de un álbum
+      operationId: listAlbumSongs
+      responses:
+        "200":
+          description: Lista de canciones del álbum
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Song"
+              example:
+                - id: cccccccc-cccc-4ccc-8ccc-cccccccccccc
+                  title: De música ligera
+                  duration_seconds: 212
+                  album_id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+                - id: dddddddd-dddd-4ddd-8ddd-dddddddddddd
+                  title: Entre caníbales
+                  duration_seconds: 246
+                  album_id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+        "404":
+          description: El álbum no existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: ALBUM_NOT_FOUND
+                message: No se encontró el álbum solicitado.
+                details:
+                  - El albumId no corresponde a un álbum existente.
+    post:
+      tags: [Songs]
+      summary: Crear una canción en un álbum
+      operationId: createAlbumSong
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SongInput"
+            example:
+              title: De música ligera
+              duration_seconds: 212
+      responses:
+        "201":
+          description: Canción creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Song"
+              example:
+                id: cccccccc-cccc-4ccc-8ccc-cccccccccccc
+                title: De música ligera
+                duration_seconds: 212
+                album_id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+        "400":
+          description: Falta el título o la duración, o la duración no es válida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missingTitle:
+                  summary: Falta el título
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Los datos de la canción no son válidos.
+                    details:
+                      - El campo title es obligatorio.
+                invalidDuration:
+                  summary: Duración inválida
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Los datos de la canción no son válidos.
+                    details:
+                      - duration_seconds debe ser un entero mayor que cero.
+        "404":
+          description: El álbum no existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: ALBUM_NOT_FOUND
+                message: No se encontró el álbum solicitado.
+                details:
+                  - El albumId no corresponde a un álbum existente.
+
+  /users:
+    get:
+      tags: [Users]
+      summary: Listar usuarios
+      operationId: listUsers
+      responses:
+        "200":
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+              example:
+                - id: eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee
+                  username: melomana
+                  email: melomana@example.com
+                - id: 123e4567-e89b-42d3-a456-426614174000
+                  username: rocknacional
+                  email: rock@example.com
+    post:
+      tags: [Users]
+      summary: Crear un usuario
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+            example:
+              username: melomana
+              email: melomana@example.com
+      responses:
+        "201":
+          description: Usuario creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+              example:
+                id: eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee
+                username: melomana
+                email: melomana@example.com
+        "400":
+          description: Falta el nombre de usuario o el email, o el email tiene formato inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missingUsername:
+                  summary: Falta el nombre de usuario
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Los datos del usuario no son válidos.
+                    details:
+                      - El campo username es obligatorio.
+                invalidEmail:
+                  summary: Email con formato inválido
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Los datos del usuario no son válidos.
+                    details:
+                      - El campo email debe tener un formato válido.
+        "409":
+          description: Ya existe un usuario con el mismo email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: EMAIL_ALREADY_EXISTS
+                message: Ya existe un usuario registrado con ese email.
+                details:
+                  - melomana@example.com ya está registrado.
+
+  /users/{userId}/playlists:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    get:
+      tags: [Playlists]
+      summary: Listar las playlists de un usuario
+      operationId: listUserPlaylists
+      responses:
+        "200":
+          description: Lista de playlists del usuario
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Playlist"
+              example:
+                - id: ffffffff-ffff-4fff-8fff-ffffffffffff
+                  name: Favoritas del rock nacional
+                  user_id: eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee
+                  songs:
+                    - id: cccccccc-cccc-4ccc-8ccc-cccccccccccc
+                      title: De música ligera
+                      duration_seconds: 212
+                      album_id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+                    - id: dddddddd-dddd-4ddd-8ddd-dddddddddddd
+                      title: Entre caníbales
+                      duration_seconds: 246
+                      album_id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+        "404":
+          description: El usuario no existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: USER_NOT_FOUND
+                message: No se encontró el usuario solicitado.
+                details:
+                  - El userId no corresponde a un usuario existente.
+    post:
+      tags: [Playlists]
+      summary: Crear una playlist para un usuario
+      operationId: createUserPlaylist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaylistInput"
+            example:
+              name: Favoritas del rock nacional
+      responses:
+        "201":
+          description: Playlist creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Playlist"
+              example:
+                id: ffffffff-ffff-4fff-8fff-ffffffffffff
+                name: Favoritas del rock nacional
+                user_id: eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee
+                songs: []
+        "400":
+          description: Falta el nombre de la playlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: VALIDATION_ERROR
+                message: El nombre de la playlist es obligatorio.
+                details:
+                  - El campo name no puede estar vacío.
+        "404":
+          description: El usuario no existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: USER_NOT_FOUND
+                message: No se encontró el usuario solicitado.
+                details:
+                  - El userId no corresponde a un usuario existente.
+
+  /playlists/{playlistId}:
+    parameters:
+      - $ref: "#/components/parameters/PlaylistId"
+    get:
+      tags: [Playlists]
+      summary: Obtener el detalle de una playlist
+      operationId: getPlaylist
+      responses:
+        "200":
+          description: Detalle de la playlist con sus canciones
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Playlist"
+              example:
+                id: ffffffff-ffff-4fff-8fff-ffffffffffff
+                name: Favoritas del rock nacional
+                user_id: eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee
+                songs:
+                  - id: cccccccc-cccc-4ccc-8ccc-cccccccccccc
+                    title: De música ligera
+                    duration_seconds: 212
+                    album_id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+                  - id: dddddddd-dddd-4ddd-8ddd-dddddddddddd
+                    title: Entre caníbales
+                    duration_seconds: 246
+                    album_id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+        "404":
+          description: La playlist no existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: PLAYLIST_NOT_FOUND
+                message: No se encontró la playlist solicitada.
+                details:
+                  - El playlistId no corresponde a una playlist existente.
+
+  /playlists/{playlistId}/songs:
+    parameters:
+      - $ref: "#/components/parameters/PlaylistId"
+    post:
+      tags: [Playlists]
+      summary: Agregar una canción a una playlist
+      operationId: addSongToPlaylist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaylistSongInput"
+            example:
+              song_id: cccccccc-cccc-4ccc-8ccc-cccccccccccc
+      responses:
+        "201":
+          description: Canción agregada a la playlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Playlist"
+              example:
+                id: ffffffff-ffff-4fff-8fff-ffffffffffff
+                name: Favoritas del rock nacional
+                user_id: eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee
+                songs:
+                  - id: cccccccc-cccc-4ccc-8ccc-cccccccccccc
+                    title: De música ligera
+                    duration_seconds: 212
+                    album_id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+        "400":
+          description: Falta el identificador de la canción
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: VALIDATION_ERROR
+                message: El identificador de la canción es obligatorio.
+                details:
+                  - El campo song_id es obligatorio.
+        "404":
+          description: La playlist o la canción no existen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                playlistNotFound:
+                  summary: La playlist no existe
+                  value:
+                    code: PLAYLIST_NOT_FOUND
+                    message: No se encontró la playlist solicitada.
+                    details:
+                      - El playlistId no corresponde a una playlist existente.
+                songNotFound:
+                  summary: La canción no existe
+                  value:
+                    code: SONG_NOT_FOUND
+                    message: No se encontró la canción solicitada.
+                    details:
+                      - El song_id no corresponde a una canción existente.
+        "409":
+          description: La canción ya pertenece a la playlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: SONG_ALREADY_IN_PLAYLIST
+                message: La canción ya pertenece a la playlist.
+                details:
+                  - La canción cccccccc-cccc-4ccc-8ccc-cccccccccccc ya fue agregada.
+
+  /playlists/{playlistId}/songs/{songId}:
+    parameters:
+      - $ref: "#/components/parameters/PlaylistId"
+      - $ref: "#/components/parameters/SongId"
+    delete:
+      tags: [Playlists]
+      summary: Eliminar una canción de una playlist
+      operationId: removeSongFromPlaylist
+      responses:
+        "204":
+          description: Canción eliminada de la playlist
+        "404":
+          description: La playlist o la canción no existen, o la canción no pertenece a la playlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                playlistNotFound:
+                  summary: La playlist no existe
+                  value:
+                    code: PLAYLIST_NOT_FOUND
+                    message: No se encontró la playlist solicitada.
+                    details:
+                      - El playlistId no corresponde a una playlist existente.
+                songNotFound:
+                  summary: La canción no existe
+                  value:
+                    code: SONG_NOT_FOUND
+                    message: No se encontró la canción solicitada.
+                    details:
+                      - El songId no corresponde a una canción existente.
+                songNotInPlaylist:
+                  summary: La canción no pertenece a la playlist
+                  value:
+                    code: SONG_NOT_IN_PLAYLIST
+                    message: La canción no pertenece a la playlist indicada.
+                    details:
+                      - No existe una asociación entre la playlist y la canción.
+
+components:
+  parameters:
+    ArtistId:
+      name: artistId
+      in: path
+      required: true
+      description: Identificador del artista
+      schema:
+        $ref: "#/components/schemas/Id"
+    AlbumId:
+      name: albumId
+      in: path
+      required: true
+      description: Identificador del álbum
+      schema:
+        $ref: "#/components/schemas/Id"
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: Identificador del usuario
+      schema:
+        $ref: "#/components/schemas/Id"
+    PlaylistId:
+      name: playlistId
+      in: path
+      required: true
+      description: Identificador de la playlist
+      schema:
+        $ref: "#/components/schemas/Id"
+    SongId:
+      name: songId
+      in: path
+      required: true
+      description: Identificador de la canción
+      schema:
+        $ref: "#/components/schemas/Id"
+
+  schemas:
+    Id:
+      type: string
+      format: uuid
+      examples:
+        - 550e8400-e29b-41d4-a716-446655440000
+
+    UserInput:
+      type: object
+      additionalProperties: false
+      required: [username, email]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          examples: [melomana]
+        email:
+          type: string
+          format: email
+          examples: [melomana@example.com]
+
+    User:
+      type: object
+      additionalProperties: false
+      required: [id, username, email]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        username:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+
+    ArtistInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          examples: [Soda Stereo]
+
+    Artist:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+          minLength: 1
+
+    AlbumInput:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          examples: [Canción Animal]
+        release_date:
+          type: string
+          format: date
+          examples: ["1990-08-07"]
+
+    Album:
+      type: object
+      additionalProperties: false
+      required: [id, title, artist_id]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        title:
+          type: string
+          minLength: 1
+        release_date:
+          type: string
+          format: date
+        artist_id:
+          $ref: "#/components/schemas/Id"
+
+    SongInput:
+      type: object
+      additionalProperties: false
+      required: [title, duration_seconds]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          examples: [De música ligera]
+        duration_seconds:
+          type: integer
+          minimum: 1
+          examples: [212]
+
+    Song:
+      type: object
+      additionalProperties: false
+      required: [id, title, duration_seconds, album_id]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        title:
+          type: string
+          minLength: 1
+        duration_seconds:
+          type: integer
+          minimum: 1
+        album_id:
+          $ref: "#/components/schemas/Id"
+
+    PlaylistInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          examples: [Favoritas]
+
+    PlaylistSongInput:
+      type: object
+      additionalProperties: false
+      required: [song_id]
+      properties:
+        song_id:
+          $ref: "#/components/schemas/Id"
+
+    Playlist:
+      type: object
+      additionalProperties: false
+      required: [id, name, user_id, songs]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+          minLength: 1
+        user_id:
+          $ref: "#/components/schemas/Id"
+        songs:
+          type: array
+          items:
+            $ref: "#/components/schemas/Song"
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          examples: [VALIDATION_ERROR]
+        message:
+          type: string
+          examples: [Los datos enviados no son válidos.]
+        details:
+          type: array
+          items:
+            type: string
