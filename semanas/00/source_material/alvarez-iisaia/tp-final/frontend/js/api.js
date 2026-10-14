@@ -1,26 +1,56 @@
 const API_ROOT = "/api";
+let csrfToken = null;
+
+export class ApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function setCsrfToken(value) {
+  csrfToken = value || null;
+}
 
 function validationMessage(detail) {
   if (!Array.isArray(detail)) return null;
   return detail.map((item) => item.msg?.replace(/^Value error, /, "") || "Dato inválido.").join(" ");
 }
 
-async function request(path, options = {}) {
-  const config = { ...options, headers: { ...(options.headers || {}) } };
+async function request(url, options = {}) {
+  const config = { credentials: "same-origin", ...options, headers: { ...(options.headers || {}) } };
   if (config.body) config.headers["Content-Type"] = "application/json";
+  if (csrfToken && !["GET", "HEAD"].includes(config.method || "GET")) {
+    config.headers["X-CSRF-Token"] = csrfToken;
+  }
   let response;
   try {
-    response = await fetch(`${API_ROOT}${path}`, config);
+    response = await fetch(url, config);
   } catch {
-    throw new Error("No pudimos conectar con Coffee Atlas. Revisá que el servidor esté activo.");
+    throw new ApiError("No pudimos conectar con Coffee Atlas. Revisá que el servidor esté activo.", 0);
   }
   if (response.status === 204) return null;
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     const detail = validationMessage(data?.detail) || data?.detail;
-    throw new Error(typeof detail === "string" ? detail : "La solicitud no pudo completarse.");
+    const error = new ApiError(
+      typeof detail === "string" ? detail : "La solicitud no pudo completarse.",
+      response.status,
+    );
+    if (response.status === 401) window.dispatchEvent(new CustomEvent("coffee-atlas:session-expired"));
+    throw error;
   }
   return data;
+}
+
+export const getSession = () => request(`${API_ROOT}/session`);
+
+export async function logoutSession() {
+  return request("/auth/logout", {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
 }
 
 export function listCafes(filters = {}) {
@@ -29,11 +59,10 @@ export function listCafes(filters = {}) {
     if (value !== "" && value !== null && value !== undefined) params.set(key, value);
   });
   const query = params.toString();
-  return request(`/cafes${query ? `?${query}` : ""}`);
+  return request(`${API_ROOT}/cafes${query ? `?${query}` : ""}`);
 }
 
-export const getStats = () => request("/stats");
-export const createCafe = (payload) => request("/cafes", { method: "POST", body: JSON.stringify(payload) });
-export const updateCafe = (id, payload) => request(`/cafes/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
-export const deleteCafe = (id) => request(`/cafes/${id}`, { method: "DELETE" });
-
+export const getStats = () => request(`${API_ROOT}/stats`);
+export const createCafe = (payload) => request(`${API_ROOT}/cafes`, { method: "POST", body: JSON.stringify(payload) });
+export const updateCafe = (id, payload) => request(`${API_ROOT}/cafes/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
+export const deleteCafe = (id) => request(`${API_ROOT}/cafes/${id}`, { method: "DELETE" });

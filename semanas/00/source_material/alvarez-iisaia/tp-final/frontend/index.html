@@ -8,7 +8,20 @@
     <link rel="stylesheet" href="/css/styles.css">
   </head>
   <body>
-    <header class="site-header">
+    <p id="session-loading" class="session-state" role="status" aria-live="polite">Comprobando sesión…</p>
+
+    <section id="login-view" class="login-view" aria-labelledby="login-title" hidden>
+      <p class="eyebrow">Atlas personal</p>
+      <h1 id="login-title">Tu recorrido cafetero, en un solo lugar</h1>
+      <p id="login-message">Iniciá sesión para abrir tu atlas personal.</p>
+      <div class="login-actions">
+        <a id="login-link" class="button button-primary" href="/auth/login">Iniciar sesión</a>
+        <a class="button button-quiet" href="/auth/signup">Crear cuenta</a>
+      </div>
+      <p class="external-note">La identidad y la contraseña son administradas por Auth0.</p>
+    </section>
+
+    <header class="site-header authenticated-content" hidden>
       <div class="header-inner">
         <a class="brand" href="/" aria-label="Coffee Atlas, inicio">
           <svg aria-hidden="true" viewBox="0 0 48 48" width="42" height="42">
@@ -17,11 +30,15 @@
           </svg>
           <span>Coffee Atlas</span>
         </a>
-        <button class="button button-primary" id="add-cafe" type="button">Agregar cafetería</button>
+        <div class="session-controls">
+          <span><strong id="session-name"></strong><small id="session-email"></small></span>
+          <button class="button button-quiet" id="logout-button" type="button">Cerrar sesión</button>
+          <button class="button button-primary" id="add-cafe" type="button">Agregar cafetería</button>
+        </div>
       </div>
     </header>
 
-    <main>
+    <main class="authenticated-content" hidden>
       <section class="hero" aria-labelledby="page-title">
         <p class="eyebrow">Atlas personal</p>
         <h1 id="page-title">Cada café deja una coordenada</h1>
@@ -78,7 +95,7 @@
       </section>
     </main>
 
-    <footer><p>Coffee Atlas · Un diario local para recorridos con aroma a café.</p></footer>
+    <footer class="authenticated-content" hidden><p>Coffee Atlas · Un diario local para recorridos con aroma a café.</p></footer>
     <p id="global-message" class="sr-live" aria-live="polite"></p>
 
     <dialog id="cafe-dialog" aria-labelledby="cafe-dialog-title">
@@ -121,4 +138,3 @@
     <script type="module" src="/js/app.js"></script>
   </body>
 </html>
-

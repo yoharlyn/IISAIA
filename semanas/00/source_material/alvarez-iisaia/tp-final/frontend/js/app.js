@@ -1,5 +1,6 @@
 import { createCafe, deleteCafe, getStats, listCafes, updateCafe } from "./api.js";
 import { populateNeighborhoods, renderCafes, renderStats, setListState } from "./ui.js";
+import { initializeSession } from "./auth.js";
 
 const filterForm = document.querySelector("#filter-form");
 const cafeDialog = document.querySelector("#cafe-dialog");
@@ -208,5 +209,4 @@ document.querySelector("#cancel-delete").addEventListener("click", () => closeDi
 [cafeDialog, deleteDialog].forEach((dialog) => dialog.addEventListener("close", () => returnFocus?.focus()));
 
 fillRatings();
-loadData();
-
+initializeSession(loadData);

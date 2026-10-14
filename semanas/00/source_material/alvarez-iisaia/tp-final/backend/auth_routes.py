@@ -198,6 +198,9 @@ def logout(
         location = _auth_provider(request).logout_url()
     except (AuthError, ValueError):
         location = "/"
-    response = RedirectResponse(location, status_code=status.HTTP_303_SEE_OTHER)
+    if "application/json" in request.headers.get("Accept", ""):
+        response = JSONResponse({"logout_url": location})
+    else:
+        response = RedirectResponse(location, status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie(SESSION_COOKIE_NAME, path="/")
     return response

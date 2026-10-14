@@ -13,11 +13,21 @@
 body { margin: 0; min-width: 320px; background: var(--cream-50); line-height: 1.5; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
+a.button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 3px solid var(--terracotta-500); outline-offset: 3px; }
 .site-header { border-bottom: 1px solid var(--cream-200); background: rgb(255 253 248 / 95%); }
 .header-inner, main, footer { width: min(calc(100% - 32px), var(--content)); margin-inline: auto; }
 .header-inner { min-height: 78px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.session-controls { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.session-controls span { display: flex; flex-direction: column; text-align: right; }
+.session-controls small { color: var(--espresso-500); }
+.session-state, .login-view { width: min(calc(100% - 32px), 620px); margin-inline: auto; }
+.session-state { padding-block: 72px; text-align: center; color: var(--espresso-500); }
+.login-view { margin-block: 10vh; border: 1px solid var(--cream-200); border-radius: var(--radius-lg); padding: clamp(28px, 6vw, 60px); background: var(--white); box-shadow: var(--shadow); }
+.login-view h1 { margin: 4px 0 16px; font-family: Georgia, serif; font-size: clamp(2rem, 7vw, 4rem); line-height: 1; }
+.login-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.external-note { margin-top: 24px; color: var(--espresso-500); font-size: .9rem; }
 .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--espresso-900); font-weight: 800; font-size: 1.15rem; text-decoration: none; }
 .brand svg { color: var(--terracotta-700); }
 main { padding-block: 54px 72px; }
@@ -108,6 +118,9 @@ dialog::backdrop { background: rgb(25 16 12 / 68%); }
 @media (max-width: 580px) {
   .header-inner, main, footer { width: min(calc(100% - 24px), var(--content)); }
   .header-inner { min-height: 70px; }
+  .session-controls span { display: none; }
+  .session-controls { gap: 6px; }
+  .session-controls .button { padding-inline: 10px; font-size: .82rem; }
   .brand span { font-size: 1rem; }
   .header-inner .button { padding-inline: 13px; }
   main { padding-block: 30px 50px; }
@@ -125,4 +138,3 @@ dialog::backdrop { background: rgb(25 16 12 / 68%); }
   .dialog-form { padding: 22px 18px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
-
