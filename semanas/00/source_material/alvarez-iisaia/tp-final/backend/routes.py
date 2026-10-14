@@ -7,8 +7,11 @@ from sqlmodel import Session, func, select
 from backend.auth_routes import AuthContext, require_auth, require_csrf
 from backend.db import get_session
 from backend.models import Cafe, Visit, VisitStatus, utc_now
-from backend.schemas import CafeCreate, CafeRead, CafeUpdate, StatsRead
+from backend.schemas import CafeCreate, CafeRead, CafeSearch, CafeSearchRead, CafeUpdate, StatsRead
 from backend.locations import location_values, places_provider, verify_place_selection
+from backend.distance import haversine_km
+from backend.geo import location_is_fresh
+from backend.google_places import Coordinates
 
 router = APIRouter(prefix="/api")
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -41,15 +44,19 @@ def latest_visit(session: Session, cafe: Cafe) -> Visit | None:
 
 def serialize_cafe(session: Session, cafe: Cafe) -> CafeRead:
     visit = latest_visit(session, cafe)
+    location_fresh = location_is_fresh(cafe.location_expires_at)
+    location_status = cafe.location_status
+    if cafe.place_id and not location_fresh:
+        location_status = "EXPIRED"
     return CafeRead(
         id=cafe.id,
         name=cafe.name,
         neighborhood=cafe.neighborhood,
         place_id=cafe.place_id,
         selected_address=cafe.selected_address,
-        latitude=cafe.latitude,
-        longitude=cafe.longitude,
-        location_status=cafe.location_status,
+        latitude=cafe.latitude if location_fresh else None,
+        longitude=cafe.longitude if location_fresh else None,
+        location_status=location_status,
         location_expires_at=cafe.location_expires_at,
         description=cafe.description,
         image_url=cafe.image_url,
@@ -94,6 +101,60 @@ def list_cafes(
     result = [serialize_cafe(session, cafe) for cafe in cafes]
     if visit_status is not None:
         result = [item for item in result if item.visit_status == visit_status]
+    return result
+
+
+@router.post("/cafes/search", response_model=list[CafeSearchRead])
+def search_cafes(
+    payload: CafeSearch,
+    response: Response,
+    session: SessionDep,
+    auth: CsrfDep,
+):
+    response.headers["Cache-Control"] = "no-store"
+    cafes = session.exec(select(Cafe).where(Cafe.owner_id == auth.user.id)).all()
+    serialized = [serialize_cafe(session, cafe) for cafe in cafes]
+    if payload.q:
+        needle = payload.q.casefold()
+        serialized = [item for item in serialized if needle in item.name.casefold()]
+    if payload.neighborhood:
+        serialized = [
+            item
+            for item in serialized
+            if item.neighborhood.casefold() == payload.neighborhood.casefold()
+        ]
+    if payload.visit_status:
+        serialized = [item for item in serialized if item.visit_status == payload.visit_status]
+    if payload.is_favorite is not None:
+        serialized = [item for item in serialized if item.is_favorite == payload.is_favorite]
+
+    origin = None
+    if payload.origin and payload.origin.type == "current":
+        origin = Coordinates(payload.origin.latitude, payload.origin.longitude)
+    elif payload.origin and payload.origin.type == "home":
+        user = auth.user
+        if not location_is_fresh(user.home_location_expires_at):
+            raise HTTPException(status_code=409, detail="El domicilio no tiene coordenadas vigentes.")
+        origin = Coordinates(user.home_latitude, user.home_longitude)
+
+    result = []
+    for item in serialized:
+        distance = None
+        if origin and item.latitude is not None and item.longitude is not None:
+            distance = haversine_km(origin, Coordinates(item.latitude, item.longitude))
+        if payload.radius_km is not None and (distance is None or distance > payload.radius_km):
+            continue
+        result.append(CafeSearchRead(**item.model_dump(), distance_km=distance))
+    if origin:
+        result.sort(
+            key=lambda item: (
+                item.distance_km is None,
+                item.distance_km if item.distance_km is not None else float("inf"),
+                item.name.casefold(),
+            )
+        )
+    else:
+        result.sort(key=lambda item: (item.updated_at, item.id), reverse=True)
     return result
 
 

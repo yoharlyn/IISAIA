@@ -69,3 +69,4 @@ export const getStats = () => request(`${API_ROOT}/stats`);
 export const createCafe = (payload) => request(`${API_ROOT}/cafes`, { method: "POST", body: JSON.stringify(payload) });
 export const updateCafe = (id, payload) => request(`${API_ROOT}/cafes/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
 export const deleteCafe = (id) => request(`${API_ROOT}/cafes/${id}`, { method: "DELETE" });
+export const searchCafes = (payload) => request(`${API_ROOT}/cafes/search`, { method: "POST", body: JSON.stringify(payload) });

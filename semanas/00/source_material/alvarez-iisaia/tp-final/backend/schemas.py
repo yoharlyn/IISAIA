@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -130,6 +130,42 @@ class CafeRead(BaseModel):
         if value.tzinfo is None:
             return value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc)
+
+
+class CafeSearchRead(CafeRead):
+    distance_km: float | None = None
+
+
+class SearchOrigin(StrictSchema):
+    type: Literal["current", "home"]
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+
+    @model_validator(mode="after")
+    def validate_coordinates(self) -> Self:
+        supplied = self.latitude is not None or self.longitude is not None
+        if self.type == "current" and (
+            self.latitude is None or self.longitude is None
+        ):
+            raise ValueError("La ubicación actual requiere latitud y longitud.")
+        if self.type == "home" and supplied:
+            raise ValueError("El domicilio no acepta coordenadas del cliente.")
+        return self
+
+
+class CafeSearch(StrictSchema):
+    q: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)] | None = None
+    neighborhood: Neighborhood | None = None
+    visit_status: VisitStatus | None = None
+    is_favorite: bool | None = None
+    origin: SearchOrigin | None = None
+    radius_km: float | None = Field(default=None, ge=0.5, le=20)
+
+    @model_validator(mode="after")
+    def validate_radius(self) -> Self:
+        if self.radius_km is not None and self.origin is None:
+            raise ValueError("El radio requiere un origen.")
+        return self
 
 
 class StatsRead(BaseModel):
