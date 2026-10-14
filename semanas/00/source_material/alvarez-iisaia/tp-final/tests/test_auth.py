@@ -70,7 +70,7 @@ def test_login_and_signup_create_signed_transactions_without_network(database_ur
 
 def test_callback_rejects_missing_or_mismatched_state(database_url):
     app, provider = auth_client(database_url)
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
         missing = client.get(
             "/auth/callback",
             params={"code": "code", "state": "missing"},
