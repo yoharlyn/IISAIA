@@ -51,11 +51,19 @@ def test_public_summary_never_contains_secret_values():
     assert settings.auth0_client_secret not in repr(summary)
 
 
-def test_create_app_uses_environment_settings_by_default(monkeypatch, database_url):
+def test_create_app_uses_process_environment_without_loading_env_file(
+    monkeypatch, database_url
+):
     monkeypatch.setenv("APP_BASE_URL", CANONICAL_BASE_URL)
     monkeypatch.setenv("SESSION_SECRET", "e" * 32)
     monkeypatch.setenv("AUTH0_CALLBACK_URL", f"{CANONICAL_BASE_URL}/auth/callback")
     monkeypatch.setenv("AUTH0_LOGOUT_RETURN_URL", f"{CANONICAL_BASE_URL}/")
+    monkeypatch.setattr(
+        "backend.config.load_dotenv",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("Los tests no deben abrir .env")
+        ),
+    )
     from backend.main import create_app
 
     app = create_app(database_url=database_url, seed_on_startup=False)

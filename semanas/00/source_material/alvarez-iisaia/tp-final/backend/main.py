@@ -27,7 +27,7 @@ def create_app(
     auth_provider: AuthProvider | None = None,
     places_provider: PlacesProvider | None = None,
 ) -> FastAPI:
-    configured = settings or Settings.from_env()
+    configured = settings or Settings.from_env(load_file=False)
     engine = build_engine(database_url or DEFAULT_DATABASE_URL)
 
     @asynccontextmanager
@@ -65,4 +65,6 @@ def create_app(
     return application
 
 
-app = create_app()
+def create_production_app() -> FastAPI:
+    """Factory de ejecución real; es el único punto que carga el archivo .env."""
+    return create_app(settings=Settings.from_env(load_file=True))
