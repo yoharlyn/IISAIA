@@ -20,9 +20,9 @@ UV_CACHE_DIR=/private/tmp/coffee-atlas-uv-cache uv run --offline python -m compi
 git diff --check
 ```
 
-Resultado previo a la documentación final:
+Resultado actual:
 
-- 89 tests aprobados y 0 fallas.
+- 91 tests aprobados y 0 fallas.
 - 1 warning: `AuthlibDeprecationWarning` por `authlib.jose`; conocido y no
   ocultado.
 - `compileall` y `git diff --check`: correctos.
@@ -65,6 +65,10 @@ de seguridad. Toda salida de red queda sustituida por dobles.
   cafeterías, CSRF, sesión y logout verificados en su checkpoint manual.
 - Google: mapa, Autocomplete, Place Details, Nearby, CABA, atribución y errores
   verificados tras el checkpoint manual de Google Cloud.
+- Regresión de domicilio: una selección real con una variante textual distinta
+  se guardó correctamente usando la dirección canónica devuelta por Place
+  Details. La evidencia fue sanitizada y no conserva correo, domicilio, Place ID
+  ni otros datos personales.
 - Migraciones: V1 y ampliación geográfica tuvieron backups independientes,
   integridad, upgrade, verify y status aceptados en sus checkpoints.
 
