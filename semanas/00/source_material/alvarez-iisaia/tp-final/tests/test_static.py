@@ -55,9 +55,15 @@ def test_frontend_assets_are_served(client):
     assert "innerHTML" not in places_module.text
     assert recommendations_module.status_code == 200
     assert "textContent" in recommendations_module.text
+    assert "Datos actuales de Google Maps" in recommendations_module.text
+    assert "Cálculo para tu atlas" in recommendations_module.text
+    assert "Antes de guardar" in recommendations_module.text
+    assert "renderRecommendationsUnavailable" in recommendations_module.text
+    assert "innerHTML" not in recommendations_module.text
     assert 'id="home-autocomplete"' in client.get("/").text
     assert 'id="cafe-autocomplete"' in client.get("/").text
     assert "provienen de Google Maps" in client.get("/").text
+    assert "el cálculo determinístico" in client.get("/").text
     assert visits_module.status_code == 200
     assert "uploadVisitPhoto" in visits_module.text
     assert "textContent" in visits_module.text

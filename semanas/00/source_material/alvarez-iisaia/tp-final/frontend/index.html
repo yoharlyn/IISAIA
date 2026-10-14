@@ -109,6 +109,7 @@
 
       <section class="recommendations-section" aria-labelledby="recommendations-title">
         <div class="section-heading"><div><p class="eyebrow">Descubrir</p><h2 id="recommendations-title">Recomendaciones cercanas</h2></div></div>
+        <p class="recommendations-disclosure">Cada resultado separa los datos actuales de Google Maps, el cálculo determinístico realizado para tu atlas y la información que se guardaría localmente.</p>
         <form id="recommendations-form" class="recommendations-form">
           <fieldset><legend>Origen</legend><label><input type="radio" name="origin" value="current" checked> Ubicación actual</label><label><input type="radio" name="origin" value="home"> Domicilio</label></fieldset>
           <div class="field"><label for="recommendation-radius">Radio</label><select id="recommendation-radius" name="radius_km"><option value="1">1 km</option><option value="3" selected>3 km</option><option value="5">5 km</option></select></div>
@@ -116,7 +117,7 @@
         </form>
         <p id="recommendations-status" role="status" aria-live="polite">La búsqueda se ejecuta sólo cuando la solicitás.</p>
         <div id="recommendations-list" class="recommendations-grid"></div>
-        <p class="google-attribution">Las recomendaciones y sus datos actuales provienen de Google Maps.</p>
+        <p class="google-attribution">Los nombres, direcciones, ratings, reseñas, estados comerciales, aperturas y enlaces mostrados en los resultados actuales provienen de Google Maps.</p>
       </section>
 
       <section class="atlas-section" aria-labelledby="atlas-title">

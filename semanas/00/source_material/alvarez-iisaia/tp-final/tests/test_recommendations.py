@@ -147,3 +147,36 @@ def test_recommendation_radius_is_capped_at_five_km(client):
         },
     )
     assert response.status_code == 422
+
+
+def test_recommendation_response_labels_source_and_missing_google_data(client, app):
+    async def nearby(**_kwargs):
+        return [
+            candidate(
+                display_name=None,
+                formatted_address=None,
+                business_status=None,
+                rating=None,
+                user_rating_count=None,
+                google_maps_uri=None,
+            )
+        ]
+
+    app.state.places_provider.nearby = nearby
+    response = client.post(
+        "/api/recommendations/search",
+        json={
+            "origin": {"type": "current", "latitude": -34.6037, "longitude": -58.3816},
+            "radius_km": 3,
+        },
+    )
+
+    assert response.status_code == 200
+    row = response.json()[0]
+    assert row["attribution"] == "Google Maps"
+    assert row["display_name"] is None
+    assert row["formatted_address"] is None
+    assert row["rating"] is None
+    assert row["user_rating_count"] is None
+    assert row["business_status"] is None
+    assert row["google_maps_uri"] is None

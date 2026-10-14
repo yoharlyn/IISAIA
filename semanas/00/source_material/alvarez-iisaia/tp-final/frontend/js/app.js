@@ -3,7 +3,7 @@ import { populateNeighborhoods, renderCafes, renderStats, setListState } from ".
 import { initializeSession } from "./auth.js";
 import { getCurrentPositionForView, loadMapsScript, renderAtlasMap, requestCurrentPosition } from "./map.js";
 import { mountPlaceAutocomplete, showAutocompleteUnavailable } from "./places.js";
-import { renderRecommendations } from "./recommendations.js";
+import { renderRecommendations, renderRecommendationsUnavailable } from "./recommendations.js";
 import { initializeVisits } from "./visits.js";
 import { initializeDashboard } from "./dashboard.js";
 
@@ -75,7 +75,9 @@ async function initializeMap() {
     renderAtlasMap(document.querySelector("#atlas-map"), allCafesForMap, mapConfig);
     status.textContent = "Mapa listo. Las ubicaciones vencidas no se muestran.";
   } catch (error) {
+    renderRecommendationsUnavailable(document.querySelector("#recommendations-list"), error.message);
     status.textContent = error.message;
+    status.classList.add("error");
   }
 }
 
@@ -130,6 +132,7 @@ async function findRecommendations(event) {
   const data = new FormData(event.currentTarget);
   const type = data.get("origin");
   let origin = { type };
+  status.classList.remove("error");
   status.textContent = "Buscando recomendaciones…";
   try {
     if (type === "current") {
