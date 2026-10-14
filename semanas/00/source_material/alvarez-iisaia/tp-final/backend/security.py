@@ -22,6 +22,10 @@ def hash_secret(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def derive_csrf_token(token: str, key: str) -> str:
+    return hmac.new(key.encode("utf-8"), token.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
 @dataclass(frozen=True, slots=True)
 class IssuedSession:
     token: str
@@ -34,10 +38,11 @@ def issue_session(
     user: User,
     *,
     now: datetime | None = None,
+    csrf_key: str = "coffee-atlas-test-csrf-key",
 ) -> IssuedSession:
     issued_at = now or datetime.now(timezone.utc)
     token = secrets.token_urlsafe(32)
-    csrf_token = secrets.token_urlsafe(32)
+    csrf_token = derive_csrf_token(token, csrf_key)
     record = LocalSession(
         token_hash=hash_secret(token),
         csrf_hash=hash_secret(csrf_token),
