@@ -3,13 +3,122 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Atlas personal para registrar y calificar cafeterías.">
     <title>Coffee Atlas</title>
+    <link rel="stylesheet" href="/css/styles.css">
   </head>
   <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="Coffee Atlas, inicio">
+          <svg aria-hidden="true" viewBox="0 0 48 48" width="42" height="42">
+            <path d="M8 15h27v13a12 12 0 0 1-12 12h-3A12 12 0 0 1 8 28V15Z" fill="none" stroke="currentColor" stroke-width="3"/>
+            <path d="M35 19h3a6 6 0 0 1 0 12h-4M15 9c0-3 3-3 3-6M25 9c0-3 3-3 3-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+          <span>Coffee Atlas</span>
+        </a>
+        <button class="button button-primary" id="add-cafe" type="button">Agregar cafetería</button>
+      </div>
+    </header>
+
     <main>
-      <h1>Coffee Atlas</h1>
-      <p>Tu atlas personal de cafeterías.</p>
+      <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow">Atlas personal</p>
+        <h1 id="page-title">Cada café deja una coordenada</h1>
+        <p>Guardá los lugares que querés conocer y recordá los que ya forman parte de tu recorrido.</p>
+      </section>
+
+      <section class="stats-grid" aria-label="Estadísticas del atlas">
+        <article class="stat-card"><span id="stat-total">—</span><h2>Total</h2></article>
+        <article class="stat-card"><span id="stat-visited">—</span><h2>Visitadas</h2></article>
+        <article class="stat-card"><span id="stat-pending">—</span><h2>Pendientes</h2></article>
+        <article class="stat-card"><span id="stat-favorites">—</span><h2>Favoritas</h2></article>
+      </section>
+
+      <section class="filters-panel" aria-labelledby="filters-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">Explorar</p><h2 id="filters-title">Encontrá tu próxima parada</h2></div>
+        </div>
+        <form id="filter-form" class="filters" role="search">
+          <div class="field field-wide">
+            <label for="search">Buscar por nombre</label>
+            <input id="search" name="q" type="search" maxlength="100" placeholder="Ej. Bruma Café">
+          </div>
+          <div class="field">
+            <label for="neighborhood-filter">Barrio</label>
+            <select id="neighborhood-filter" name="neighborhood"><option value="">Todos los barrios</option></select>
+          </div>
+          <div class="field">
+            <label for="status-filter">Estado</label>
+            <select id="status-filter" name="visit_status">
+              <option value="">Todos los estados</option><option value="VISITED">Visitadas</option><option value="PENDING">Pendientes</option>
+            </select>
+          </div>
+          <label class="check-field" for="favorite-filter"><input id="favorite-filter" name="is_favorite" type="checkbox">Sólo favoritas</label>
+          <div class="filter-actions">
+            <button class="button button-primary" type="submit">Aplicar filtros</button>
+            <button class="button button-quiet" id="clear-filters" type="button">Limpiar</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="atlas-section" aria-labelledby="atlas-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">Colección</p><h2 id="atlas-title">Mis cafeterías</h2></div>
+          <p id="result-count" class="result-count" aria-live="polite"></p>
+        </div>
+        <p id="list-status" class="status-message" role="status" aria-live="polite">Cargando cafeterías…</p>
+        <button id="retry-load" class="button button-secondary" type="button" hidden>Reintentar</button>
+        <div id="cafe-grid" class="cafe-grid" aria-busy="true"></div>
+        <div id="empty-state" class="empty-state" hidden>
+          <h3 id="empty-title">Todavía no registraste cafeterías</h3>
+          <p id="empty-description">Agregá la primera parada de tu recorrido.</p>
+          <button id="empty-action" class="button button-primary" type="button">Agregar cafetería</button>
+        </div>
+      </section>
     </main>
+
+    <footer><p>Coffee Atlas · Un diario local para recorridos con aroma a café.</p></footer>
+    <p id="global-message" class="sr-live" aria-live="polite"></p>
+
+    <dialog id="cafe-dialog" aria-labelledby="cafe-dialog-title">
+      <form id="cafe-form" class="dialog-form" novalidate>
+        <div class="dialog-heading">
+          <div><p class="eyebrow">Ficha del atlas</p><h2 id="cafe-dialog-title">Agregar cafetería</h2></div>
+          <button class="icon-button" id="close-cafe-dialog" type="button" aria-label="Cerrar formulario">×</button>
+        </div>
+        <p id="form-error" class="form-error" role="alert" hidden></p>
+        <input id="cafe-id" name="id" type="hidden">
+        <div class="form-grid">
+          <div class="field"><label for="cafe-name">Nombre</label><input id="cafe-name" name="name" required maxlength="100" autocomplete="off"></div>
+          <div class="field"><label for="cafe-neighborhood">Barrio</label><input id="cafe-neighborhood" name="neighborhood" required maxlength="80" autocomplete="off"></div>
+          <div class="field field-full"><label for="cafe-description">Descripción</label><textarea id="cafe-description" name="description" required maxlength="600" rows="4"></textarea><small>Hasta 600 caracteres.</small></div>
+          <div class="field field-full"><label for="cafe-image">URL de fotografía <span>(opcional)</span></label><input id="cafe-image" name="image_url" type="url" maxlength="2048" inputmode="url" placeholder="https://ejemplo.com/cafe.jpg"></div>
+          <div class="field"><label for="cafe-status">Estado</label><select id="cafe-status" name="visit_status"><option value="PENDING">Pendiente</option><option value="VISITED">Visitada</option></select></div>
+          <label class="check-field form-favorite" for="cafe-favorite"><input id="cafe-favorite" name="is_favorite" type="checkbox">Marcar como favorita</label>
+        </div>
+        <fieldset class="ratings-fieldset">
+          <legend>Valoraciones opcionales</legend>
+          <div class="ratings-form-grid">
+            <div class="field"><label for="coffee-rating">Café</label><select id="coffee-rating" name="coffee_rating"></select></div>
+            <div class="field"><label for="food-rating">Comida</label><select id="food-rating" name="food_rating"></select></div>
+            <div class="field"><label for="ambience-rating">Ambiente</label><select id="ambience-rating" name="ambience_rating"></select></div>
+            <div class="field"><label for="service-rating">Atención</label><select id="service-rating" name="service_rating"></select></div>
+          </div>
+        </fieldset>
+        <div class="dialog-actions"><button class="button button-quiet" id="cancel-cafe" type="button">Cancelar</button><button class="button button-primary" id="save-cafe" type="submit">Guardar cafetería</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="delete-dialog" aria-labelledby="delete-title">
+      <form id="delete-form" class="dialog-form compact">
+        <p class="eyebrow">Confirmar acción</p><h2 id="delete-title">Eliminar cafetería</h2>
+        <p id="delete-message"></p><p id="delete-error" class="form-error" role="alert" hidden></p>
+        <div class="dialog-actions"><button class="button button-quiet" id="cancel-delete" type="button">Cancelar</button><button class="button button-danger" id="confirm-delete" type="submit">Eliminar definitivamente</button></div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/js/app.js"></script>
   </body>
 </html>
 
