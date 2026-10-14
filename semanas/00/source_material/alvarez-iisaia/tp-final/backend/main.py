@@ -11,6 +11,8 @@ from backend.auth_routes import auth_router, session_router
 from backend.config import Settings
 from backend.routes import router
 from backend.migrations import inspect_database
+from backend.google_places import GooglePlacesProvider, PlacesProvider
+from backend.profile_routes import router as profile_router
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -21,6 +23,7 @@ def create_app(
     seed_on_startup: bool = True,
     settings: Settings | None = None,
     auth_provider: AuthProvider | None = None,
+    places_provider: PlacesProvider | None = None,
 ) -> FastAPI:
     configured = settings or Settings.from_env()
     engine = build_engine(database_url or DEFAULT_DATABASE_URL)
@@ -47,8 +50,12 @@ def create_app(
     application.state.settings = configured
     application.state.cookie_secure = configured.app_env != "development"
     application.state.auth_provider = auth_provider or Auth0Provider(configured)
+    application.state.places_provider = places_provider or GooglePlacesProvider(
+        configured.google_maps_server_key
+    )
     application.include_router(auth_router)
     application.include_router(session_router)
+    application.include_router(profile_router)
     application.include_router(router)
     application.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     return application

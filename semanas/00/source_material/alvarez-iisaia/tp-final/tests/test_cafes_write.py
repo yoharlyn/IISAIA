@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, urlparse
 from backend.auth import AuthIdentity
 from backend.config import Settings
 from backend.main import create_app
+from conftest import FakePlacesProvider, TEST_ADDRESS
 
 
 class PersistenceAuthProvider:
@@ -33,6 +34,8 @@ def cafe_payload(**overrides):
         "name": "Lumbre Café",
         "neighborhood": "Boedo",
         "description": "Una barra tranquila con espresso y pastelería artesanal.",
+        "place_id": "place-lumbre",
+        "selected_address": TEST_ADDRESS,
         "image_url": "https://example.com/cafe.jpg",
         "visit_status": "VISITED",
         "is_favorite": True,
@@ -75,7 +78,7 @@ def test_create_normalizes_strings_and_empty_image(client):
 
     assert response.status_code == 201
     assert response.json()["name"] == "Lumbre Café"
-    assert response.json()["neighborhood"] == "Boedo"
+    assert response.json()["neighborhood"] == "San Nicolas"
     assert response.json()["description"] == "Una descripción válida."
     assert response.json()["image_url"] is None
 
@@ -172,14 +175,16 @@ def test_created_cafe_persists_in_a_new_application(database_url):
     settings = Settings(session_secret="p" * 32).validated()
     provider = PersistenceAuthProvider()
     first_app = create_app(
-        database_url=database_url, seed_on_startup=False, settings=settings, auth_provider=provider
+        database_url=database_url, seed_on_startup=False, settings=settings,
+        auth_provider=provider, places_provider=FakePlacesProvider()
     )
     with TestClient(first_app, base_url="http://127.0.0.1:8000") as first_client:
         login_for_persistence(first_client)
         created = first_client.post("/api/cafes", json=cafe_payload()).json()
 
     second_app = create_app(
-        database_url=database_url, seed_on_startup=False, settings=settings, auth_provider=provider
+        database_url=database_url, seed_on_startup=False, settings=settings,
+        auth_provider=provider, places_provider=FakePlacesProvider()
     )
     with TestClient(second_app, base_url="http://127.0.0.1:8000") as second_client:
         login_for_persistence(second_client)

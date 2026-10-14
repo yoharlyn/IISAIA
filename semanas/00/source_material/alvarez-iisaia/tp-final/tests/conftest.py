@@ -6,6 +6,33 @@ from backend.auth import AuthIdentity
 from backend.config import Settings
 from backend.main import create_app
 from backend.seed import seed_cafes
+from backend.google_places import AddressComponent, Coordinates, PlaceDetails
+
+
+TEST_ADDRESS = "Av. Corrientes 1000, CABA"
+
+
+class FakePlacesProvider:
+    def __init__(self):
+        self.details_calls = []
+
+    async def details(self, place_id):
+        self.details_calls.append(place_id)
+        return PlaceDetails(
+            place_id=place_id,
+            formatted_address=TEST_ADDRESS,
+            address_components=(
+                AddressComponent(
+                    long_text="Ciudad Autónoma de Buenos Aires",
+                    short_text="CABA",
+                    types=("administrative_area_level_1",),
+                ),
+            ),
+            location=Coordinates(-34.6037, -58.3816),
+        )
+
+    async def nearby(self, **_kwargs):
+        return []
 
 
 class FakeAuthProvider:
@@ -32,6 +59,7 @@ def app(database_url):
         seed_on_startup=False,
         settings=Settings(session_secret="t" * 32).validated(),
         auth_provider=FakeAuthProvider(),
+        places_provider=FakePlacesProvider(),
     )
 
 

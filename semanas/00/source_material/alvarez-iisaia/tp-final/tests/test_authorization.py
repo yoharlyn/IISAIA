@@ -1,6 +1,7 @@
 from urllib.parse import parse_qs, urlparse
 
 from fastapi.testclient import TestClient
+from conftest import TEST_ADDRESS
 
 
 def login(client: TestClient, code: str):
@@ -37,6 +38,8 @@ def test_two_users_cannot_access_each_others_cafes(app):
                 "name": "Privada",
                 "neighborhood": "Boedo",
                 "description": "Sólo visible para su propietaria.",
+                "place_id": "place-private",
+                "selected_address": TEST_ADDRESS,
             },
         ).json()
 
@@ -59,6 +62,8 @@ def test_mutations_require_matching_origin_and_csrf(client):
         "name": "CSRF",
         "neighborhood": "Flores",
         "description": "Caso de seguridad.",
+        "place_id": "place-csrf",
+        "selected_address": TEST_ADDRESS,
     }
     csrf = client.headers["X-CSRF-Token"]
     assert client.post(

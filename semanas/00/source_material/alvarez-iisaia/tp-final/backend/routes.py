@@ -1,12 +1,14 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, func, select
 
 from backend.auth_routes import AuthContext, require_auth, require_csrf
 from backend.db import get_session
 from backend.models import Cafe, Visit, VisitStatus, utc_now
 from backend.schemas import CafeCreate, CafeRead, CafeUpdate, StatsRead
+from backend.locations import location_values, places_provider, verify_place_selection
 
 router = APIRouter(prefix="/api")
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -43,6 +45,12 @@ def serialize_cafe(session: Session, cafe: Cafe) -> CafeRead:
         id=cafe.id,
         name=cafe.name,
         neighborhood=cafe.neighborhood,
+        place_id=cafe.place_id,
+        selected_address=cafe.selected_address,
+        latitude=cafe.latitude,
+        longitude=cafe.longitude,
+        location_status=cafe.location_status,
+        location_expires_at=cafe.location_expires_at,
         description=cafe.description,
         image_url=cafe.image_url,
         visit_status=VisitStatus.VISITED if visit else VisitStatus.PENDING,
@@ -90,17 +98,35 @@ def list_cafes(
 
 
 @router.post("/cafes", response_model=CafeRead, status_code=status.HTTP_201_CREATED)
-def create_cafe(payload: CafeCreate, session: SessionDep, auth: CsrfDep):
-    values = payload.model_dump(exclude=set(RATING_FIELDS) | {"visit_status"})
+async def create_cafe(
+    payload: CafeCreate, request: Request, session: SessionDep, auth: CsrfDep
+):
+    verified = await verify_place_selection(
+        places_provider(request),
+        place_id=payload.place_id,
+        selected_address=payload.selected_address,
+    )
+    values = payload.model_dump(
+        exclude=set(RATING_FIELDS)
+        | {"visit_status", "neighborhood", "place_id", "selected_address"}
+    )
+    values.update(location_values(verified))
+    values["location_status"] = "VERIFIED"
     cafe = Cafe(owner_id=auth.user.id, **values)
-    session.add(cafe)
-    session.flush()
-    ratings = {field: getattr(payload, field) for field in RATING_FIELDS}
-    if payload.visit_status == VisitStatus.VISITED or any(
-        value is not None for value in ratings.values()
-    ):
-        session.add(Visit(owner_id=auth.user.id, cafe_id=cafe.id, **ratings))
-    session.commit()
+    try:
+        session.add(cafe)
+        session.flush()
+        ratings = {field: getattr(payload, field) for field in RATING_FIELDS}
+        if payload.visit_status == VisitStatus.VISITED or any(
+            value is not None for value in ratings.values()
+        ):
+            session.add(Visit(owner_id=auth.user.id, cafe_id=cafe.id, **ratings))
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=409, detail="Esa cafetería ya está en tu atlas."
+        ) from None
     session.refresh(cafe)
     return serialize_cafe(session, cafe)
 
@@ -111,11 +137,30 @@ def get_cafe(cafe_id: CafeId, session: SessionDep, auth: AuthDep):
 
 
 @router.patch("/cafes/{cafe_id}", response_model=CafeRead)
-def update_cafe(cafe_id: CafeId, payload: CafeUpdate, session: SessionDep, auth: CsrfDep):
+async def update_cafe(
+    cafe_id: CafeId,
+    payload: CafeUpdate,
+    request: Request,
+    session: SessionDep,
+    auth: CsrfDep,
+):
     cafe = find_cafe(session, cafe_id, auth.user.id)
     supplied = payload.model_dump(exclude_unset=True)
+    location_supplied = "place_id" in supplied
+    if location_supplied:
+        verified = await verify_place_selection(
+            places_provider(request),
+            place_id=supplied.pop("place_id"),
+            selected_address=supplied.pop("selected_address"),
+        )
+        cafe.sqlmodel_update(location_values(verified))
+        cafe.location_status = "VERIFIED"
     cafe.sqlmodel_update(
-        {key: value for key, value in supplied.items() if key not in RATING_FIELDS and key != "visit_status"}
+        {
+            key: value
+            for key, value in supplied.items()
+            if key not in RATING_FIELDS and key not in {"visit_status", "neighborhood"}
+        }
     )
     visit = latest_visit(session, cafe)
     requested_status = supplied.get("visit_status")
@@ -134,7 +179,13 @@ def update_cafe(cafe_id: CafeId, payload: CafeUpdate, session: SessionDep, auth:
         session.add(visit)
     cafe.updated_at = utc_now()
     session.add(cafe)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=409, detail="Esa cafetería ya está en tu atlas."
+        ) from None
     session.refresh(cafe)
     return serialize_cafe(session, cafe)
 
