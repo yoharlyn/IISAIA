@@ -1,0 +1,2 @@
+"""Backend de Coffee Atlas."""
+

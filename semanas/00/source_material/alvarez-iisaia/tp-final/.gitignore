@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+
+# SQLite y artefactos locales
+*.db
+*.db-shm
+*.db-wal
+
+# Entorno y sistema
+.env
+.DS_Store
+
