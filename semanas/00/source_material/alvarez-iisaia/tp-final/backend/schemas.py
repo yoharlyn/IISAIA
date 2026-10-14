@@ -168,6 +168,36 @@ class CafeSearch(StrictSchema):
         return self
 
 
+class RecommendationSearch(StrictSchema):
+    origin: SearchOrigin
+    radius_km: float = Field(ge=0.5, le=5)
+
+
+class RecommendationRead(BaseModel):
+    place_id: str
+    display_name: str | None
+    formatted_address: str | None
+    latitude: float
+    longitude: float
+    distance_km: float
+    business_status: str | None
+    rating: float | None
+    user_rating_count: int | None
+    opening_date: str | None
+    google_maps_uri: str | None
+    novelty_label: str
+    score: float
+    factors: dict[str, float]
+    attribution: Literal["Google Maps"] = "Google Maps"
+
+
+class RecommendationSave(StrictSchema):
+    name: Name
+    selected_address: SelectedAddress
+    description: Description
+    is_favorite: bool = False
+
+
 class StatsRead(BaseModel):
     total: int
     visited: int
