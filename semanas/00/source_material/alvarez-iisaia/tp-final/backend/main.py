@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlmodel import SQLModel
 
 from backend.db import DEFAULT_DATABASE_URL, build_engine
+from backend.routes import router
 from backend.seed import seed_cafes
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
@@ -29,6 +30,7 @@ def create_app(
 
     application = FastAPI(title="Coffee Atlas API", lifespan=lifespan)
     application.state.engine = engine
+    application.include_router(router)
     application.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     return application
 
