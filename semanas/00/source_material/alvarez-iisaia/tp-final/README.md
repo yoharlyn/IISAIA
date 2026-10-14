@@ -1,289 +1,249 @@
-# Coffee Atlas
+# Coffee Atlas V2
 
-Trabajo Práctico Final de Introducción a la Ingeniería de Software Asistida por
-IA. Coffee Atlas es un atlas y diario personal para guardar cafeterías visitadas
-o pendientes, calificarlas, marcarlas como favoritas y volver a encontrarlas con
-búsqueda y filtros.
+Coffee Atlas es un atlas y diario personal de cafeterías desarrollado como
+proyecto educativo. FastAPI sirve la API y un frontend HTML, CSS y JavaScript
+vanilla; SQLModel persiste datos locales en SQLite.
 
-El flujo es real de punta a punta: el navegador consume una API FastAPI, la API
-lee y escribe una base SQLite y los cambios permanecen después de reiniciar el
-servidor.
+V2 incorpora Auth0, sesiones locales opacas, aislamiento por persona, direcciones
+validadas en CABA, mapa y Places, visitas, fotos privadas, dashboard y
+recomendaciones determinísticas. La especificación y el plan vigentes están en
+[`docs/spec-v2.md`](docs/spec-v2.md) y [`docs/plan-v2.md`](docs/plan-v2.md). Los
+documentos V1 permanecen congelados como registro histórico.
 
 ## Funcionalidades
 
-- Tarjetas con nombre, barrio, descripción, foto o fallback, estado y ratings.
-- Alta, edición y eliminación con confirmación.
-- Favoritos desde cada tarjeta.
-- Estados `PENDING` y `VISITED`.
-- Ratings opcionales de 1 a 5 para café, comida, ambiente y atención.
-- Búsqueda parcial por nombre.
-- Filtros combinables por barrio, estado y favoritos.
-- Estadísticas globales de total, visitadas, pendientes y favoritas.
-- Seed idempotente con siete cafeterías ficticias.
-- Estados visibles de carga, vacío, cero resultados, error y éxito.
-- Interfaz responsive y operable por teclado.
+- Login y registro mediante Auth0 Universal Login.
+- Sesiones locales opacas: SQLite conserva sólo el hash del token.
+- Cafeterías, visitas, fotos, dashboard y estadísticas aislados por usuario.
+- Domicilio y cafeterías verificadas dentro de CABA mediante Place ID.
+- Coordenadas de Places con vencimiento interno de 29 días.
+- Mapa, geolocalización efímera y distancia Haversine.
+- Historial de visitas con cuatro valoraciones opcionales.
+- Hasta cinco fotos privadas por visita, validadas y recodificadas.
+- Dashboard accesible con tablas equivalentes a cada visualización.
+- Recomendaciones determinísticas con atribución y persistencia mínima.
+- Modo degradado cuando Google Maps no está configurado o disponible.
+- Páginas locales de Términos y Privacidad.
 
-## Requisitos y ejecución
+## Requisitos
 
 - Python 3.11 o superior.
 - [uv](https://docs.astral.sh/uv/).
+- Una aplicación Auth0 de tipo **Regular Web Application**.
+- Maps JavaScript API y Places API (New) habilitadas en Google Cloud.
 
-Desde este directorio:
+No se utiliza Geocoding API, Node, bundler, framework frontend, Docker ni
+Alembic.
 
-```bash
-uv sync
-uv run fastapi dev backend/main.py
+## Configuración local
+
+El único origen soportado es `http://127.0.0.1:8000`. No usar `localhost`:
+representa otro host y mezclaría cookies, callbacks y orígenes autorizados.
+
+1. Instalar dependencias con `uv sync`.
+2. Copiar `.env.example` a `.env` y completar los valores localmente.
+3. No pegar secretos en chats, logs, capturas o documentación.
+
+Configuración Auth0:
+
+```text
+Callback:    http://127.0.0.1:8000/auth/callback
+Logout:      http://127.0.0.1:8000/
+Web origin:  http://127.0.0.1:8000
 ```
 
-Abrir `http://127.0.0.1:8000`. La documentación interactiva de la API está en
-`http://127.0.0.1:8000/docs`.
+La clave web Google debe aceptar `http://127.0.0.1:8000/*`. Habilitar solamente
+Maps JavaScript API y Places API (New), restringir cada clave por API y configurar
+presupuesto y alertas. La clave web es visible al navegador; los secretos Auth0,
+la clave de sesión y la clave servidor nunca se envían al frontend.
 
-Si el puerto 8000 está ocupado:
+## Base de datos y migraciones
+
+El startup nunca migra automáticamente una base existente. Si detecta V1 o una
+V2 geográfica pendiente, se niega a iniciar y solicita el comando manual.
 
 ```bash
-uv run fastapi dev backend/main.py --port 8765
+uv run python -m backend.migrations status --database data/coffee_atlas.db
+uv run python -m backend.migrations backup \
+  --database data/coffee_atlas.db \
+  --output data/backups/coffee-atlas-AAAA-MM-DD-HHMMSS.db
+uv run python -m backend.migrations upgrade \
+  --database data/coffee_atlas.db \
+  --backup data/backups/coffee-atlas-AAAA-MM-DD-HHMMSS.db
+uv run python -m backend.migrations verify --database data/coffee_atlas.db
 ```
 
-La primera ejecución crea `data/coffee_atlas.db` y carga siete registros. La
-base está ignorada por Git. No hay variables de entorno ni servicios externos
-obligatorios.
+Restauración, siempre con servidor detenido y autorización independiente:
+
+```bash
+uv run python -m backend.migrations restore \
+  --database data/coffee_atlas.db \
+  --from data/backups/coffee-atlas-AAAA-MM-DD-HHMMSS.db
+```
+
+Ante un fallo no se repite ni se restaura automáticamente. SQLite y
+`data/uploads/` deben respaldarse juntos.
+
+## Ejecución
+
+```bash
+uv run fastapi dev backend/main.py \
+  --factory \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --no-access-log
+```
+
+Abrir `http://127.0.0.1:8000`. La factory real carga `.env` y falla de forma
+segura si faltan la clave de sesión o variables Auth0 requeridas.
+
+## Sesiones y logout
+
+- Inactividad máxima: 8 horas; duración absoluta: 7 días.
+- No se almacenan access tokens ni refresh tokens Auth0.
+- El logout elimina la sesión local, expira la cookie y luego intenta cerrar el
+  SSO en Auth0.
+- Si Auth0 está caído, la sesión local ya queda invalidada.
+- Revocar o cerrar una sesión directamente en Auth0 no invalida inmediatamente
+  una sesión local existente; termina por logout o expiración local.
+
+## Privacidad y datos Google
+
+- Place IDs pueden persistirse.
+- La dirección seleccionada se guarda como dato de la transacción del usuario.
+- Coordenadas de Places vencen a los 29 días.
+- Componentes, rating, reseñas, estado comercial, apertura y enlace de Google
+  Maps se usan en la respuesta actual y no forman un snapshot persistente.
+- La ubicación actual permanece en memoria. Para recomendaciones viaja en el
+  body de un `POST` sin caché; nunca en URLs, SQLite o storage del navegador.
+- Fotos, notas, visitas y ratings personales son datos locales del usuario.
+
+Más detalles: [Términos](http://127.0.0.1:8000/terms.html) y
+[Privacidad](http://127.0.0.1:8000/privacy.html) con la aplicación local iniciada.
 
 ## Pruebas
 
 ```bash
-uv run pytest -q
-uv run python -m compileall backend
+UV_CACHE_DIR=/private/tmp/coffee-atlas-uv-cache uv run --offline pytest -q
+UV_CACHE_DIR=/private/tmp/coffee-atlas-uv-cache uv run --offline python -m compileall backend
+git diff --check
 ```
 
-Los tests usan una SQLite temporal, no modifican `data/coffee_atlas.db` y no
-necesitan red. La evidencia completa está en
-[`docs/verification.md`](docs/verification.md) y el recorrido manual reproducible
-en [`docs/browser-checklist.md`](docs/browser-checklist.md).
+Los tests bloquean la red y usan SQLite y uploads temporales. El recorrido de
+navegador está en [`docs/browser-checklist-v2.md`](docs/browser-checklist-v2.md)
+y la evidencia en [`docs/verification-v2.md`](docs/verification-v2.md).
 
 ## Arquitectura
 
 ```text
-Navegador: HTML + CSS + módulos ES
-                 │ fetch, mismo origen
-                 ▼
-FastAPI: /api + frontend estático en /
-                 │ SQLModel Session por request
-                 ▼
-SQLite: data/coffee_atlas.db
+Auth0 Universal Login
+        | OIDC Authorization Code
+        v
+FastAPI -- sesión local opaca -- SQLite
+   |                              |- users / sessions
+   |                              |- cafes / visits / visit_photos
+   |                              `- place_discoveries
+   |- Places API (New)
+   |- data/uploads/ privado
+   `- frontend HTML/CSS/JS
+          |- Maps JavaScript API
+          `- navigator.geolocation
 ```
 
-Un solo proceso sirve API y frontend. `backend/main.py` registra el router `/api`
-antes de montar `StaticFiles` en `/`; así no hacen falta CORS, Node ni un segundo
-servidor.
-
-El backend está separado en:
-
-- `db.py`: engine y sesión por request.
-- `models.py`: tabla `Cafe`, enum y restricciones de base.
-- `schemas.py`: entradas y salidas Pydantic.
-- `seed.py`: siete datos iniciales y condición idempotente.
-- `routes.py`: los seis endpoints.
-- `main.py`: app factory, lifespan y archivos estáticos.
-
-El frontend usa tres módulos:
-
-- `api.js`: única capa que conoce `fetch` y traduce errores.
-- `ui.js`: crea tarjetas y estados con APIs seguras del DOM.
-- `app.js`: coordina filtros, diálogos, mutaciones y recargas.
+Los routers se registran antes del frontend estático. `frontend/js/api.js` es
+la única capa HTTP del navegador y el contenido dinámico se construye con APIs
+seguras del DOM.
 
 ## Estructura
 
-```text
-tp-final/
-├── .codex/skills/preentrega-coffee-atlas/SKILL.md
-├── data/.gitkeep
-├── docs/
-│   ├── browser-checklist.md
-│   ├── plan.md
-│   ├── spec.md
-│   └── verification.md
-├── backend/
-│   ├── AGENTS.md
-│   ├── __init__.py
-│   ├── db.py
-│   ├── main.py
-│   ├── models.py
-│   ├── routes.py
-│   ├── schemas.py
-│   └── seed.py
-├── frontend/
-│   ├── AGENTS.md
-│   ├── index.html
-│   ├── css/styles.css
-│   └── js/{api.js,app.js,ui.js}
-├── tests/
-│   ├── conftest.py
-│   ├── test_cafes_read.py
-│   ├── test_cafes_write.py
-│   ├── test_seed.py
-│   └── test_static.py
-├── .gitignore
-├── AGENTS.md
-├── pyproject.toml
-└── uv.lock
-```
+El backend separa autenticación, configuración, migraciones, Places,
+geografía, cafeterías, visitas, uploads, dashboard y recomendaciones. El
+frontend mantiene módulos enfocados para sesión, API, mapa, Places, visitas,
+dashboard y recomendaciones, sin proceso de build.
 
 ## Modelo de datos
 
-La única tabla es `cafes`:
-
-| Campo | Regla |
-|---|---|
-| `id` | PK autoincremental |
-| `name` | obligatorio, 1–100 |
-| `neighborhood` | obligatorio, 1–80 |
-| `description` | obligatorio, 1–600 |
-| `image_url` | URL HTTP/HTTPS opcional |
-| `visit_status` | `PENDING` o `VISITED` |
-| `is_favorite` | booleano |
-| cuatro ratings | `null` o entero de 1 a 5 |
-| `created_at` | UTC, creado por servidor |
-| `updated_at` | UTC, renovado en cada edición |
-
-Los campos se validan con Pydantic y las invariantes principales también tienen
-restricciones SQLite. Los nombres no son únicos para permitir sucursales. Las
-valoraciones son opcionales e independientes del estado.
+El esquema contiene `users`, `sessions`, `cafes`, `visits`, `visit_photos`,
+`place_discoveries` y metadata de migración. Cafeterías, visitas, fotos y
+descubrimientos pertenecen a un usuario; el mismo Place ID puede existir para
+propietarios distintos. El estado visitado y los ratings de cafetería se derivan
+de las visitas.
 
 ## API
 
-| Método | Path | Éxito | Errores de contrato |
-|---|---|---|---|
-| `GET` | `/api/cafes` | `200` | `422` query inválida |
-| `POST` | `/api/cafes` | `201` | `422` body inválido |
-| `GET` | `/api/cafes/{id}` | `200` | `404`, `422` |
-| `PATCH` | `/api/cafes/{id}` | `200` | `404`, `422` |
-| `DELETE` | `/api/cafes/{id}` | `204` | `404`, `422` |
-| `GET` | `/api/stats` | `200` | — |
+Rutas principales:
 
-El listado acepta `q`, `neighborhood`, `visit_status` e `is_favorite`. Los
-filtros se combinan con `AND`, búsqueda y barrio no distinguen mayúsculas y los
-caracteres `%` y `_` se buscan literalmente. El orden es por `updated_at` e `id`
-descendentes. Las estadísticas siempre representan toda la colección.
+- `/auth/login`, `/auth/signup`, `/auth/callback` y `POST /auth/logout`.
+- `/api/session`, `/api/config` y `/api/profile`.
+- CRUD `/api/cafes` y `POST /api/cafes/search`.
+- Visitas bajo `/api/cafes/{id}/visits` y `/api/visits/{id}`.
+- Fotos bajo `/api/visits/{id}/photos` y `/api/photos/{id}`.
+- `/api/dashboard` y `/api/recommendations/*`.
 
-Ejemplo:
+Todas las rutas personales requieren sesión y todas las mutaciones requieren
+CSRF. Las búsquedas con ubicación actual usan `POST`, `Cache-Control: no-store`
+y nunca query parameters de coordenadas.
 
-```http
-PATCH /api/cafes/1
-Content-Type: application/json
+## Seguridad
 
-{"is_favorite":true,"coffee_rating":5}
-```
-
-## Decisiones técnicas
-
-### Una sola tabla
-
-No hay usuarios, visitas históricas ni entidades relacionadas. Separar barrios,
-ratings o favoritos en otras tablas agregaría joins y migraciones sin resolver
-un requisito del MVP. La tabla única aplica YAGNI y sigue siendo fácil de
-explicar.
-
-### Schemas separados del modelo
-
-`CafeCreate`, `CafeUpdate` y `CafeRead` evitan que el cliente escriba IDs o
-fechas. `CafeUpdate` distingue un campo ausente de un `null` deliberado y rechaza
-un body vacío.
-
-### Seed sólo sobre tabla vacía
-
-El seed se inserta en una transacción únicamente cuando no existe ninguna fila.
-Esto permite reiniciar sin duplicar y, sobre todo, evita que una cafetería
-eliminada reaparezca.
-
-### Frontend sin build
-
-Los módulos ES se sirven tal como están. Se descartaron React y bundlers porque
-el estado de esta aplicación cabe en un módulo coordinador y el TP pide un stack
-explicable con una sola orden de ejecución.
-
-### Imágenes como referencia externa
-
-El servidor valida y almacena la URL, pero nunca descarga archivos. El navegador
-reserva el espacio, usa carga diferida y muestra un fallback si la URL falta o
-falla.
+- Todas las consultas personales incluyen el propietario autenticado.
+- IDs de otras personas devuelven `404`.
+- Cookies `HttpOnly`, `SameSite=Lax`, host-only y `Secure` fuera de desarrollo.
+- `TrustedHostMiddleware` acepta sólo el host canónico configurado.
+- CSP compatible con Google Maps, protección de framing,
+  `X-Content-Type-Options` y `Referrer-Policy`.
+- Uploads con límites, validación de contenido, recodificación y acceso
+  autenticado.
+- Bodies sensibles, secretos y ubicación actual no se registran.
 
 ## Diseño y accesibilidad
 
-La identidad usa crema, espresso, oliva y terracota. La grilla tiene una columna
-a 320 px, dos a 768 px y tres a 1440 px. Los estados y acciones no dependen sólo
-del color.
-
-- HTML semántico y jerarquía de encabezados.
-- Labels visibles, `fieldset` para ratings y regiones `aria-live`.
-- Foco de alto contraste.
-- Diálogos nativos que cierran con Escape y restauran el foco.
-- Botones con acciones textuales, sin emojis como etiquetas.
-- Botones deshabilitados durante mutaciones.
-- Creación dinámica con `textContent`, sin insertar datos remotos como HTML.
+La interfaz usa HTML semántico, labels visibles, regiones `aria-live`, foco
+perceptible, diálogos con retorno de foco y tablas alternativas para los
+gráficos. La grilla funciona sin overflow a 320, 768 y 1440 px; ningún estado
+depende sólo del color.
 
 ## Proceso asistido por Codex
 
-El trabajo comenzó en Plan Mode. Primero se inspeccionó el ejemplo del curso en
-modo de sólo lectura y se diseñaron producto, contrato, estructura, pruebas,
-commits y recortes. La primera autorización creó únicamente `docs/spec.md`,
-`docs/plan.md`, instrucciones y la skill; hubo un checkpoint antes del código.
-
-La segunda autorización habilitó una branch y la implementación incremental. Los
-tests se escribieron antes o junto a cada comportamiento. Cada capa se verificó
-antes de pasar a la siguiente y el cierre usó HTTP real y navegador con
-Playwright.
-
-El proyecto versiona instrucciones nativas para Codex:
-
-- `AGENTS.md` global.
-- `backend/AGENTS.md` y `frontend/AGENTS.md` para contexto local.
-- `preentrega-coffee-atlas`, una skill diagnóstica que no repara sin permiso.
-
-No se usaron subagentes: el dominio es pequeño y mantener API, UI y evidencia en
-un mismo contexto evitó coordinación innecesaria.
+V2 se implementó por fases y checkpoints independientes. Auth0, migraciones y
+Google tuvieron pruebas con dobles antes de cualquier verificación real. Cada
+operación sobre la base real requirió autorización específica, backup y evidencia
+sanitizada.
 
 ## Evidencia
 
-La suite final tiene 25 tests. En el navegador se verificaron los tres anchos,
-búsqueda y filtros, alta, edición, favorito, fallback, cancelación de eliminación,
-Escape, foco, consola y persistencia tras reiniciar. El registro temporal fue
-eliminado y la base quedó con las siete cafeterías del seed.
+La suite, la auditoría de seguridad y el navegador temporal están documentados
+en [`docs/verification-v2.md`](docs/verification-v2.md). La comprobación final
+usa proveedores falsos y datos temporales; los checkpoints reales anteriores no
+se repiten sin autorización.
 
 ## Diferencias respecto del plan
 
-- Las tareas de shell visual y mutaciones terminaron en un único commit funcional
-  porque `index.html`, `app.js` y `ui.js` forman un contrato inseparable. Se
-  conservaron todos los comportamientos y verificaciones planeados.
-- La eliminación definitiva desde el botón no se ejecutó automáticamente durante
-  la sesión de navegador: se abrió y canceló el diálogo, mientras que el `DELETE`
-  real se comprobó con tests y HTTP. El paso manual está documentado.
-- No hicieron falta recortes de alcance, transiciones complejas ni archivos de
-  imágenes locales.
+- V1 anónima y global pasó a identidad Auth0 y datos personales aislados.
+- La tabla única evolucionó a un modelo relacional; estado y ratings se derivan
+  de visitas.
+- El seed automático fue reemplazado por una migración manual con propietario.
+- Direcciones libres pasaron a Place ID y validación geográfica de CABA.
+- La ampliación geográfica requirió una migración adicional a esquema 3. Fue
+  autorizada, respaldada y verificada en un checkpoint independiente; no se
+  reescribe retroactivamente `docs/plan-v2.md`.
+- La auditoría final detectó y corrigió encabezados de seguridad, validación
+  fail-closed de la factory real y la documentación local de privacidad.
+- El cierre no volvió a ejecutar `verify` sobre la base real porque quedó fuera
+  de la autorización de Fase 5; se conserva el checkpoint de migración aceptado.
 
 ## Problemas encontrados
 
-### Unicode en la ruta
-
-macOS representó los acentos con Unicode NFD, mientras la ruta escrita en el
-enunciado estaba en NFC. Antes de escribir se confirmó `samefile=True` y la
-igualdad después de normalizar a NFC; así se evitó crear un directorio paralelo.
-
-### Permisos del repositorio y caché
-
-El entorno permitía escribir el proyecto, pero no `.git` ni la caché de `uv` sin
-autorización puntual. Se solicitaron permisos sólo para branch/commits y para los
-comandos `uv`, sin ampliar el alcance de archivos.
-
-### Validación de la skill
-
-Antes de instalar dependencias, el validador de skills no pudo importar PyYAML.
-No se instaló nada durante el checkpoint. Después, `uv` incorporó PyYAML como
-dependencia transitiva de FastAPI y permitió completar la verificación final.
+- La ruta del proyecto contiene Unicode y espacios; los comandos deben ejecutarse
+  desde la raíz confirmada del repositorio.
+- En entornos restringidos, usar una caché `uv` temporal y modo offline evita
+  modificar la caché global o descargar dependencias.
+- La suite informa una deprecación de `authlib.jose`; no se oculta.
 
 ## Límites deliberados
 
-No hay autenticación, mapas, geolocalización, APIs de cafeterías, recomendaciones,
-funciones sociales, uploads, cloud, Docker, Alembic ni deploy. Tampoco hay
-paginación: Coffee Atlas es un diario personal y el MVP privilegia un contrato
-pequeño, persistente y totalmente demostrable.
-
+- Revocación Auth0 externa no inmediata y ausencia de refresh tokens.
+- Dependencia de cuotas, facturación y disponibilidad de Google Maps.
+- Las coordenadas Google deben refrescarse al vencer.
+- SQLite y uploads son locales: no replican ni escalan horizontalmente.
+- Migrar `authlib.jose` a `joserfc` antes de actualizar Authlib 2.

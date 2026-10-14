@@ -1,24 +1,23 @@
-# Instrucciones del backend
+# Instrucciones del backend V2
 
 Aplica a los archivos dentro de `backend/` y a sus tests asociados.
 
-- Mantené una sola tabla `cafes` y los seis endpoints definidos en
-  `docs/spec.md`.
-- Separá responsabilidades: engine y sesión en `db.py`, tabla en `models.py`,
-  contratos Pydantic en `schemas.py`, seed en `seed.py`, rutas en `routes.py` y
-  composición de la aplicación en `main.py`.
-- `create_app()` debe admitir una URL SQLite temporal y la opción de ejecutar el
-  seed para que los tests no dependan de estado global.
-- Abrí una sesión SQLModel por request. Cada mutación debe confirmar la
-  transacción y refrescar el modelo antes de responder.
-- Normalizá strings en los schemas, prohibí campos extra y conservá `null` sólo
-  para `image_url` y ratings.
-- Expresá los rangos y valores críticos tanto en la validación como en
-  restricciones SQLite cuando sea posible.
-- Serializá `created_at` y `updated_at` como UTC explícito.
-- El seed sólo corre si la tabla completa está vacía; no debe reponer registros
-  eliminados por el usuario.
-- La búsqueda escapa `%` y `_`; todos los filtros se combinan con `AND`.
-- Cubrí primero el contrato observable: códigos, JSON, persistencia, orden y
-  errores. No pruebes detalles internos sin impacto externo.
-
+- Mantené engine y sesiones en `db.py`, contratos en `schemas.py`, composición
+  en `main.py` y routers/módulos enfocados por dominio.
+- `create_app()` admite configuración, SQLite y proveedores inyectables;
+  `create_production_app()` es el único punto que carga `.env` y debe fallar si
+  faltan sesión o Auth0.
+- Toda consulta de cafeterías, visitas, fotos, dashboard y descubrimientos filtra
+  por `owner_id`; asociaciones cruzadas devuelven `404`.
+- Mutaciones usan `require_csrf`; no debilites `Origin`, cookies,
+  `TrustedHostMiddleware` ni encabezados de seguridad.
+- No guardes tokens en claro, secretos, refresh tokens, bodies sensibles o
+  ubicación actual.
+- Places se consume sólo mediante el adaptador inyectable, field masks mínimas y
+  sin Geocoding API. Conservá la política de Place ID, TTL y contenido vivo.
+- Coordenadas actuales se aceptan sólo en bodies `POST` sin caché y se descartan.
+- Uploads: validar contenido, tamaño, dimensiones, animación, propietario y rutas
+  generadas por servidor.
+- El startup nunca migra una base existente. `status`, `backup`, `upgrade`,
+  `verify` y `restore` siguen siendo comandos manuales e idempotentes.
+- Los tests usan bases/directorios temporales, Auth/Places falsos y cero red.
