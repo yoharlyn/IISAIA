@@ -66,6 +66,8 @@ def test_create_app_uses_process_environment_without_loading_env_file(
     )
     from backend.main import create_app
 
-    app = create_app(database_url=database_url, seed_on_startup=False)
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    app = create_app(seed_on_startup=False)
 
     assert app.state.settings.session_secret == "e" * 32
+    assert str(app.state.engine.url) == database_url

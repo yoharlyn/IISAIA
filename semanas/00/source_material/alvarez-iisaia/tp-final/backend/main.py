@@ -28,7 +28,7 @@ def create_app(
     places_provider: PlacesProvider | None = None,
 ) -> FastAPI:
     configured = settings or Settings.from_env(load_file=False)
-    engine = build_engine(database_url or DEFAULT_DATABASE_URL)
+    engine = build_engine(database_url or configured.database_url or DEFAULT_DATABASE_URL)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
