@@ -8,7 +8,20 @@
     <link rel="stylesheet" href="/css/styles.css">
   </head>
   <body>
-    <header class="site-header">
+    <p id="session-loading" class="session-state" role="status" aria-live="polite">Comprobando sesión…</p>
+
+    <section id="login-view" class="login-view" aria-labelledby="login-title" hidden>
+      <p class="eyebrow">Atlas personal</p>
+      <h1 id="login-title">Tu recorrido cafetero, en un solo lugar</h1>
+      <p id="login-message">Iniciá sesión para abrir tu atlas personal.</p>
+      <div class="login-actions">
+        <a id="login-link" class="button button-primary" href="/auth/login">Iniciar sesión</a>
+        <a class="button button-quiet" href="/auth/signup">Crear cuenta</a>
+      </div>
+      <p class="external-note">La identidad y la contraseña son administradas por Auth0.</p>
+    </section>
+
+    <header class="site-header authenticated-content" hidden>
       <div class="header-inner">
         <a class="brand" href="/" aria-label="Coffee Atlas, inicio">
           <svg aria-hidden="true" viewBox="0 0 48 48" width="42" height="42">
@@ -17,11 +30,15 @@
           </svg>
           <span>Coffee Atlas</span>
         </a>
-        <button class="button button-primary" id="add-cafe" type="button">Agregar cafetería</button>
+        <div class="session-controls">
+          <span><strong id="session-name"></strong><small id="session-email"></small></span>
+          <button class="button button-quiet" id="logout-button" type="button">Cerrar sesión</button>
+          <button class="button button-primary" id="add-cafe" type="button">Agregar cafetería</button>
+        </div>
       </div>
     </header>
 
-    <main>
+    <main class="authenticated-content" hidden>
       <section class="hero" aria-labelledby="page-title">
         <p class="eyebrow">Atlas personal</p>
         <h1 id="page-title">Cada café deja una coordenada</h1>
@@ -33,6 +50,14 @@
         <article class="stat-card"><span id="stat-visited">—</span><h2>Visitadas</h2></article>
         <article class="stat-card"><span id="stat-pending">—</span><h2>Pendientes</h2></article>
         <article class="stat-card"><span id="stat-favorites">—</span><h2>Favoritas</h2></article>
+      </section>
+
+      <section class="dashboard-section" aria-labelledby="dashboard-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">Tu recorrido</p><h2 id="dashboard-title">Dashboard personal</h2></div>
+        </div>
+        <p id="dashboard-status" class="status-message" role="status" aria-live="polite">Cargando dashboard…</p>
+        <div id="dashboard-content" aria-busy="true"></div>
       </section>
 
       <section class="filters-panel" aria-labelledby="filters-title">
@@ -62,6 +87,39 @@
         </form>
       </section>
 
+      <section class="map-section" aria-labelledby="map-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">Mapa</p><h2 id="map-title">Tu atlas en CABA</h2></div>
+          <button id="locate-user" class="button button-quiet" type="button">Usar mi ubicación en esta vista</button>
+        </div>
+        <p id="map-status" class="status-message" role="status" aria-live="polite">Preparando mapa…</p>
+        <div id="atlas-map" class="atlas-map" data-map-state="loading" aria-label="Mapa de cafeterías"></div>
+        <p class="map-note">La ubicación actual permanece sólo en memoria. Distancias en línea recta, no tiempos de viaje.</p>
+      </section>
+
+      <section class="profile-section" aria-labelledby="profile-title">
+        <div class="section-heading"><div><p class="eyebrow">Perfil</p><h2 id="profile-title">Tu punto de partida</h2></div></div>
+        <form id="profile-form" class="profile-form">
+          <div class="field"><label for="profile-display-name">Nombre visible</label><input id="profile-display-name" required maxlength="100"></div>
+          <div class="field field-full"><span id="home-autocomplete-label" class="field-label">Domicilio en CABA</span><div id="home-autocomplete" aria-labelledby="home-autocomplete-label"></div><small id="home-address-selection">No configuraste un domicilio.</small></div>
+          <button id="save-profile" class="button button-primary" type="submit">Guardar perfil</button>
+          <p id="profile-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="recommendations-section" aria-labelledby="recommendations-title">
+        <div class="section-heading"><div><p class="eyebrow">Descubrir</p><h2 id="recommendations-title">Recomendaciones cercanas</h2></div></div>
+        <p class="recommendations-disclosure">Cada resultado separa los datos actuales de Google Maps, el cálculo determinístico realizado para tu atlas y la información que se guardaría localmente.</p>
+        <form id="recommendations-form" class="recommendations-form">
+          <fieldset><legend>Origen</legend><label><input type="radio" name="origin" value="current" checked> Ubicación actual</label><label><input type="radio" name="origin" value="home"> Domicilio</label></fieldset>
+          <div class="field"><label for="recommendation-radius">Radio</label><select id="recommendation-radius" name="radius_km"><option value="1">1 km</option><option value="3" selected>3 km</option><option value="5">5 km</option></select></div>
+          <button class="button button-primary" type="submit">Buscar recomendaciones</button>
+        </form>
+        <p id="recommendations-status" role="status" aria-live="polite">La búsqueda se ejecuta sólo cuando la solicitás.</p>
+        <div id="recommendations-list" class="recommendations-grid"></div>
+        <p class="google-attribution">Los nombres, direcciones, ratings, reseñas, estados comerciales, aperturas y enlaces mostrados en los resultados actuales provienen de Google Maps.</p>
+      </section>
+
       <section class="atlas-section" aria-labelledby="atlas-title">
         <div class="section-heading">
           <div><p class="eyebrow">Colección</p><h2 id="atlas-title">Mis cafeterías</h2></div>
@@ -78,7 +136,10 @@
       </section>
     </main>
 
-    <footer><p>Coffee Atlas · Un diario local para recorridos con aroma a café.</p></footer>
+    <footer class="authenticated-content" hidden>
+      <p>Coffee Atlas · Un diario local para recorridos con aroma a café.</p>
+      <nav aria-label="Información legal"><a href="/terms.html">Términos</a><a href="/privacy.html">Privacidad</a></nav>
+    </footer>
     <p id="global-message" class="sr-live" aria-live="polite"></p>
 
     <dialog id="cafe-dialog" aria-labelledby="cafe-dialog-title">
@@ -91,21 +152,11 @@
         <input id="cafe-id" name="id" type="hidden">
         <div class="form-grid">
           <div class="field"><label for="cafe-name">Nombre</label><input id="cafe-name" name="name" required maxlength="100" autocomplete="off"></div>
-          <div class="field"><label for="cafe-neighborhood">Barrio</label><input id="cafe-neighborhood" name="neighborhood" required maxlength="80" autocomplete="off"></div>
+          <div class="field field-full"><span id="cafe-autocomplete-label" class="field-label">Dirección en CABA</span><div id="cafe-autocomplete" aria-labelledby="cafe-autocomplete-label"></div><small id="cafe-address-selection">Seleccioná una dirección de la lista para continuar.</small><input name="place_id" type="hidden"><input name="selected_address" type="hidden"></div>
           <div class="field field-full"><label for="cafe-description">Descripción</label><textarea id="cafe-description" name="description" required maxlength="600" rows="4"></textarea><small>Hasta 600 caracteres.</small></div>
           <div class="field field-full"><label for="cafe-image">URL de fotografía <span>(opcional)</span></label><input id="cafe-image" name="image_url" type="url" maxlength="2048" inputmode="url" placeholder="https://ejemplo.com/cafe.jpg"></div>
-          <div class="field"><label for="cafe-status">Estado</label><select id="cafe-status" name="visit_status"><option value="PENDING">Pendiente</option><option value="VISITED">Visitada</option></select></div>
           <label class="check-field form-favorite" for="cafe-favorite"><input id="cafe-favorite" name="is_favorite" type="checkbox">Marcar como favorita</label>
         </div>
-        <fieldset class="ratings-fieldset">
-          <legend>Valoraciones opcionales</legend>
-          <div class="ratings-form-grid">
-            <div class="field"><label for="coffee-rating">Café</label><select id="coffee-rating" name="coffee_rating"></select></div>
-            <div class="field"><label for="food-rating">Comida</label><select id="food-rating" name="food_rating"></select></div>
-            <div class="field"><label for="ambience-rating">Ambiente</label><select id="ambience-rating" name="ambience_rating"></select></div>
-            <div class="field"><label for="service-rating">Atención</label><select id="service-rating" name="service_rating"></select></div>
-          </div>
-        </fieldset>
         <div class="dialog-actions"><button class="button button-quiet" id="cancel-cafe" type="button">Cancelar</button><button class="button button-primary" id="save-cafe" type="submit">Guardar cafetería</button></div>
       </form>
     </dialog>
@@ -118,7 +169,44 @@
       </form>
     </dialog>
 
+    <dialog id="visit-dialog" class="visit-dialog" aria-labelledby="visit-dialog-title">
+      <div class="dialog-form">
+        <div class="dialog-heading">
+          <div><p class="eyebrow">Historial personal</p><h2 id="visit-dialog-title">Visitas</h2></div>
+          <button class="icon-button" id="close-visit-dialog" type="button" aria-label="Cerrar historial">×</button>
+        </div>
+        <div class="visit-toolbar">
+          <button class="button button-primary" id="add-visit" type="button">Registrar visita</button>
+          <p id="visit-status" class="status-message" role="status" aria-live="polite"></p>
+        </div>
+
+        <section id="visit-editor" class="visit-editor" aria-labelledby="visit-editor-title" hidden>
+          <h3 id="visit-editor-title">Registrar visita</h3>
+          <form id="visit-form">
+            <input name="id" type="hidden">
+            <div class="form-grid">
+              <div class="field"><label for="visit-date">Fecha y hora</label><input id="visit-date" name="visited_at" type="datetime-local" required></div>
+              <label class="check-field" for="visit-estimated"><input id="visit-estimated" name="date_is_estimated" type="checkbox">La fecha es estimada</label>
+              <div class="field field-full"><label for="visit-note">Nota <span>(opcional)</span></label><textarea id="visit-note" name="note" maxlength="1000" rows="3"></textarea></div>
+            </div>
+            <fieldset class="ratings-fieldset">
+              <legend>Valoraciones opcionales</legend>
+              <div class="ratings-form-grid">
+                <div class="field"><label for="visit-coffee-rating">Café</label><select id="visit-coffee-rating" name="coffee_rating"><option value="">Sin calificar</option><option value="1">1 de 5</option><option value="2">2 de 5</option><option value="3">3 de 5</option><option value="4">4 de 5</option><option value="5">5 de 5</option></select></div>
+                <div class="field"><label for="visit-food-rating">Comida</label><select id="visit-food-rating" name="food_rating"><option value="">Sin calificar</option><option value="1">1 de 5</option><option value="2">2 de 5</option><option value="3">3 de 5</option><option value="4">4 de 5</option><option value="5">5 de 5</option></select></div>
+                <div class="field"><label for="visit-ambience-rating">Ambiente</label><select id="visit-ambience-rating" name="ambience_rating"><option value="">Sin calificar</option><option value="1">1 de 5</option><option value="2">2 de 5</option><option value="3">3 de 5</option><option value="4">4 de 5</option><option value="5">5 de 5</option></select></div>
+                <div class="field"><label for="visit-service-rating">Atención</label><select id="visit-service-rating" name="service_rating"><option value="">Sin calificar</option><option value="1">1 de 5</option><option value="2">2 de 5</option><option value="3">3 de 5</option><option value="4">4 de 5</option><option value="5">5 de 5</option></select></div>
+              </div>
+            </fieldset>
+            <div class="dialog-actions"><button class="button button-quiet" id="cancel-visit-edit" type="button">Cancelar</button><button class="button button-primary" id="save-visit" type="submit">Registrar visita</button></div>
+          </form>
+        </section>
+
+        <p id="visit-empty" class="empty-state" hidden>Todavía no registraste visitas a esta cafetería.</p>
+        <div id="visit-list" class="visit-list"></div>
+      </div>
+    </dialog>
+
     <script type="module" src="/js/app.js"></script>
   </body>
 </html>
-

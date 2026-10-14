@@ -1,6 +1,6 @@
 from sqlmodel import Session, func, select
 
-from backend.models import Cafe, VisitStatus
+from backend.models import Cafe, Visit, VisitStatus
 
 SEED_CAFES = (
     {
@@ -71,10 +71,30 @@ SEED_CAFES = (
 )
 
 
-def seed_cafes(engine) -> None:
+def seed_cafes(engine, owner_id: int) -> None:
     with Session(engine) as session:
-        if session.exec(select(func.count()).select_from(Cafe)).one() > 0:
+        if session.exec(
+            select(func.count()).select_from(Cafe).where(Cafe.owner_id == owner_id)
+        ).one() > 0:
             return
-        session.add_all(Cafe(**data) for data in SEED_CAFES)
+        for index, data in enumerate(SEED_CAFES, start=1):
+            legacy = dict(data)
+            visit_status = legacy.pop("visit_status")
+            ratings = {
+                key: legacy.pop(key, None)
+                for key in ("coffee_rating", "food_rating", "ambience_rating", "service_rating")
+            }
+            cafe = Cafe(owner_id=owner_id, **legacy)
+            session.add(cafe)
+            session.flush()
+            if visit_status == VisitStatus.VISITED:
+                session.add(
+                    Visit(
+                        owner_id=owner_id,
+                        cafe_id=cafe.id,
+                        date_is_estimated=True,
+                        migration_key=f"seed-v1-{owner_id}-{index}",
+                        **ratings,
+                    )
+                )
         session.commit()
-

@@ -1,24 +1,33 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, func, select
 
+from backend.auth_routes import AuthContext, require_auth, require_csrf
 from backend.db import get_session
-from backend.models import Cafe, VisitStatus, utc_now
-from backend.schemas import CafeCreate, CafeRead, CafeUpdate, StatsRead
+from backend.models import Cafe, Visit, VisitPhoto, VisitStatus, utc_now
+from backend.schemas import CafeCreate, CafeRead, CafeSearch, CafeSearchRead, CafeUpdate, StatsRead
+from backend.locations import location_values, places_provider, verify_place_selection
+from backend.distance import haversine_km
+from backend.geo import location_is_fresh
+from backend.google_places import Coordinates
+from backend.uploads import purge_quarantined, quarantine_photos, restore_quarantined
 
 router = APIRouter(prefix="/api")
 SessionDep = Annotated[Session, Depends(get_session)]
+AuthDep = Annotated[AuthContext, Depends(require_auth)]
+CsrfDep = Annotated[AuthContext, Depends(require_csrf)]
 CafeId = Annotated[int, Path(gt=0)]
+RATING_FIELDS = ("coffee_rating", "food_rating", "ambience_rating", "service_rating")
 
 
-def find_cafe(session: Session, cafe_id: int) -> Cafe:
-    cafe = session.get(Cafe, cafe_id)
+def find_cafe(session: Session, cafe_id: int, owner_id: int) -> Cafe:
+    cafe = session.exec(
+        select(Cafe).where(Cafe.id == cafe_id, Cafe.owner_id == owner_id)
+    ).first()
     if cafe is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Cafetería no encontrada.",
-        )
+        raise HTTPException(status_code=404, detail="Cafetería no encontrada.")
     return cafe
 
 
@@ -26,84 +35,262 @@ def escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def visits_for_cafe(session: Session, cafe: Cafe) -> list[Visit]:
+    return list(session.exec(
+        select(Visit)
+        .where(Visit.cafe_id == cafe.id, Visit.owner_id == cafe.owner_id)
+        .order_by(Visit.visited_at.desc(), Visit.id.desc())
+    ).all())
+
+
+def average_rating(visits: list[Visit], field: str) -> float | None:
+    values = [getattr(visit, field) for visit in visits if getattr(visit, field) is not None]
+    return round(sum(values) / len(values), 2) if values else None
+
+
+def serialize_cafe(session: Session, cafe: Cafe) -> CafeRead:
+    visits = visits_for_cafe(session, cafe)
+    location_fresh = location_is_fresh(cafe.location_expires_at)
+    location_status = cafe.location_status
+    if cafe.place_id and not location_fresh:
+        location_status = "EXPIRED"
+    return CafeRead(
+        id=cafe.id,
+        name=cafe.name,
+        neighborhood=cafe.neighborhood,
+        place_id=cafe.place_id,
+        selected_address=cafe.selected_address,
+        latitude=cafe.latitude if location_fresh else None,
+        longitude=cafe.longitude if location_fresh else None,
+        location_status=location_status,
+        location_expires_at=cafe.location_expires_at,
+        description=cafe.description,
+        image_url=cafe.image_url,
+        visit_status=VisitStatus.VISITED if visits else VisitStatus.PENDING,
+        is_favorite=cafe.is_favorite,
+        coffee_rating=average_rating(visits, "coffee_rating"),
+        food_rating=average_rating(visits, "food_rating"),
+        ambience_rating=average_rating(visits, "ambience_rating"),
+        service_rating=average_rating(visits, "service_rating"),
+        created_at=cafe.created_at,
+        updated_at=cafe.updated_at,
+    )
+
+
 @router.get("/cafes", response_model=list[CafeRead])
 def list_cafes(
     session: SessionDep,
+    auth: AuthDep,
     q: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
     neighborhood: Annotated[str | None, Query(min_length=1, max_length=80)] = None,
     visit_status: VisitStatus | None = None,
     is_favorite: bool | None = None,
 ):
-    statement = select(Cafe)
+    statement = select(Cafe).where(Cafe.owner_id == auth.user.id)
     if q is not None:
         normalized_q = q.strip()
         if not normalized_q:
             raise HTTPException(status_code=422, detail="La búsqueda no puede estar vacía.")
-        pattern = f"%{escape_like(normalized_q.lower())}%"
-        statement = statement.where(func.lower(Cafe.name).like(pattern, escape="\\"))
-    if neighborhood is not None:
-        normalized_neighborhood = neighborhood.strip()
-        if not normalized_neighborhood:
-            raise HTTPException(status_code=422, detail="El barrio no puede estar vacío.")
         statement = statement.where(
-            func.lower(Cafe.neighborhood) == normalized_neighborhood.lower()
+            func.lower(Cafe.name).like(
+                f"%{escape_like(normalized_q.lower())}%", escape="\\"
+            )
         )
-    if visit_status is not None:
-        statement = statement.where(Cafe.visit_status == visit_status)
+    if neighborhood is not None:
+        normalized = neighborhood.strip()
+        if not normalized:
+            raise HTTPException(status_code=422, detail="El barrio no puede estar vacío.")
+        statement = statement.where(func.lower(Cafe.neighborhood) == normalized.lower())
     if is_favorite is not None:
         statement = statement.where(Cafe.is_favorite == is_favorite)
-    statement = statement.order_by(Cafe.updated_at.desc(), Cafe.id.desc())
-    return session.exec(statement).all()
+    cafes = session.exec(statement.order_by(Cafe.updated_at.desc(), Cafe.id.desc())).all()
+    result = [serialize_cafe(session, cafe) for cafe in cafes]
+    if visit_status is not None:
+        result = [item for item in result if item.visit_status == visit_status]
+    return result
+
+
+@router.post("/cafes/search", response_model=list[CafeSearchRead])
+def search_cafes(
+    payload: CafeSearch,
+    response: Response,
+    session: SessionDep,
+    auth: CsrfDep,
+):
+    response.headers["Cache-Control"] = "no-store"
+    cafes = session.exec(select(Cafe).where(Cafe.owner_id == auth.user.id)).all()
+    serialized = [serialize_cafe(session, cafe) for cafe in cafes]
+    if payload.q:
+        needle = payload.q.casefold()
+        serialized = [item for item in serialized if needle in item.name.casefold()]
+    if payload.neighborhood:
+        serialized = [
+            item
+            for item in serialized
+            if item.neighborhood.casefold() == payload.neighborhood.casefold()
+        ]
+    if payload.visit_status:
+        serialized = [item for item in serialized if item.visit_status == payload.visit_status]
+    if payload.is_favorite is not None:
+        serialized = [item for item in serialized if item.is_favorite == payload.is_favorite]
+
+    origin = None
+    if payload.origin and payload.origin.type == "current":
+        origin = Coordinates(payload.origin.latitude, payload.origin.longitude)
+    elif payload.origin and payload.origin.type == "home":
+        user = auth.user
+        if not location_is_fresh(user.home_location_expires_at):
+            raise HTTPException(status_code=409, detail="El domicilio no tiene coordenadas vigentes.")
+        origin = Coordinates(user.home_latitude, user.home_longitude)
+
+    result = []
+    for item in serialized:
+        distance = None
+        if origin and item.latitude is not None and item.longitude is not None:
+            distance = haversine_km(origin, Coordinates(item.latitude, item.longitude))
+        if payload.radius_km is not None and (distance is None or distance > payload.radius_km):
+            continue
+        result.append(CafeSearchRead(**item.model_dump(), distance_km=distance))
+    if origin:
+        result.sort(
+            key=lambda item: (
+                item.distance_km is None,
+                item.distance_km if item.distance_km is not None else float("inf"),
+                item.name.casefold(),
+            )
+        )
+    else:
+        result.sort(key=lambda item: (item.updated_at, item.id), reverse=True)
+    return result
 
 
 @router.post("/cafes", response_model=CafeRead, status_code=status.HTTP_201_CREATED)
-def create_cafe(payload: CafeCreate, session: SessionDep):
-    cafe = Cafe(**payload.model_dump())
-    session.add(cafe)
-    session.commit()
+async def create_cafe(
+    payload: CafeCreate, request: Request, session: SessionDep, auth: CsrfDep
+):
+    verified = await verify_place_selection(
+        places_provider(request),
+        place_id=payload.place_id,
+        selected_address=payload.selected_address,
+    )
+    values = payload.model_dump(
+        exclude=set(RATING_FIELDS)
+        | {"visit_status", "neighborhood", "place_id", "selected_address"}
+    )
+    values.update(location_values(verified))
+    values["location_status"] = "VERIFIED"
+    cafe = Cafe(owner_id=auth.user.id, **values)
+    try:
+        session.add(cafe)
+        session.flush()
+        ratings = {field: getattr(payload, field) for field in RATING_FIELDS}
+        if payload.visit_status == VisitStatus.VISITED or any(
+            value is not None for value in ratings.values()
+        ):
+            session.add(Visit(owner_id=auth.user.id, cafe_id=cafe.id, **ratings))
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=409, detail="Esa cafetería ya está en tu atlas."
+        ) from None
     session.refresh(cafe)
-    return cafe
+    return serialize_cafe(session, cafe)
 
 
 @router.get("/cafes/{cafe_id}", response_model=CafeRead)
-def get_cafe(cafe_id: CafeId, session: SessionDep):
-    return find_cafe(session, cafe_id)
+def get_cafe(cafe_id: CafeId, session: SessionDep, auth: AuthDep):
+    return serialize_cafe(session, find_cafe(session, cafe_id, auth.user.id))
 
 
 @router.patch("/cafes/{cafe_id}", response_model=CafeRead)
-def update_cafe(cafe_id: CafeId, payload: CafeUpdate, session: SessionDep):
-    cafe = find_cafe(session, cafe_id)
-    cafe.sqlmodel_update(payload.model_dump(exclude_unset=True))
+async def update_cafe(
+    cafe_id: CafeId,
+    payload: CafeUpdate,
+    request: Request,
+    session: SessionDep,
+    auth: CsrfDep,
+):
+    cafe = find_cafe(session, cafe_id, auth.user.id)
+    supplied = payload.model_dump(exclude_unset=True)
+    location_supplied = "place_id" in supplied
+    if location_supplied:
+        verified = await verify_place_selection(
+            places_provider(request),
+            place_id=supplied.pop("place_id"),
+            selected_address=supplied.pop("selected_address"),
+        )
+        cafe.sqlmodel_update(location_values(verified))
+        cafe.location_status = "VERIFIED"
+    cafe.sqlmodel_update(
+        {
+            key: value
+            for key, value in supplied.items()
+            if key not in RATING_FIELDS and key not in {"visit_status", "neighborhood"}
+        }
+    )
+    visits = visits_for_cafe(session, cafe)
+    visit = visits[0] if visits else None
+    requested_status = supplied.get("visit_status")
+    ratings_supplied = any(field in supplied for field in RATING_FIELDS)
+    if requested_status == VisitStatus.PENDING:
+        for row in session.exec(select(Visit).where(Visit.cafe_id == cafe.id)).all():
+            session.delete(row)
+        visit = None
+    elif requested_status == VisitStatus.VISITED or ratings_supplied:
+        if visit is None:
+            visit = Visit(owner_id=auth.user.id, cafe_id=cafe.id)
+        for field in RATING_FIELDS:
+            if field in supplied:
+                setattr(visit, field, supplied[field])
+        visit.updated_at = utc_now()
+        session.add(visit)
     cafe.updated_at = utc_now()
     session.add(cafe)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=409, detail="Esa cafetería ya está en tu atlas."
+        ) from None
     session.refresh(cafe)
-    return cafe
+    return serialize_cafe(session, cafe)
 
 
 @router.delete("/cafes/{cafe_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_cafe(cafe_id: CafeId, session: SessionDep):
-    cafe = find_cafe(session, cafe_id)
-    session.delete(cafe)
-    session.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+def delete_cafe(cafe_id: CafeId, request: Request, session: SessionDep, auth: CsrfDep):
+    cafe = find_cafe(session, cafe_id, auth.user.id)
+    visits = list(session.exec(select(Visit).where(Visit.cafe_id == cafe.id)).all())
+    visit_ids = [visit.id for visit in visits]
+    photos = list(
+        session.exec(select(VisitPhoto).where(VisitPhoto.visit_id.in_(visit_ids))).all()
+    ) if visit_ids else []
+    moved = quarantine_photos(request.app.state.upload_dir, photos)
+    try:
+        for photo in photos:
+            session.delete(photo)
+        for visit in visits:
+            session.delete(visit)
+        session.delete(cafe)
+        session.commit()
+    except Exception:
+        session.rollback()
+        restore_quarantined(moved)
+        raise HTTPException(status_code=500, detail="No se pudo eliminar la cafetería.") from None
+    purge_quarantined(moved)
+    return Response(status_code=204)
 
 
 @router.get("/stats", response_model=StatsRead)
-def get_stats(session: SessionDep):
-    total = session.exec(select(func.count()).select_from(Cafe)).one()
-    visited = session.exec(
-        select(func.count()).select_from(Cafe).where(Cafe.visit_status == VisitStatus.VISITED)
-    ).one()
-    pending = session.exec(
-        select(func.count()).select_from(Cafe).where(Cafe.visit_status == VisitStatus.PENDING)
-    ).one()
-    favorites = session.exec(
-        select(func.count()).select_from(Cafe).where(Cafe.is_favorite.is_(True))
-    ).one()
+def get_stats(session: SessionDep, auth: AuthDep):
+    cafes = session.exec(select(Cafe).where(Cafe.owner_id == auth.user.id)).all()
+    visited_ids = set(
+        session.exec(select(Visit.cafe_id).where(Visit.owner_id == auth.user.id)).all()
+    )
     return StatsRead(
-        total=total,
-        visited=visited,
-        pending=pending,
-        favorites=favorites,
+        total=len(cafes),
+        visited=sum(cafe.id in visited_ids for cafe in cafes),
+        pending=sum(cafe.id not in visited_ids for cafe in cafes),
+        favorites=sum(cafe.is_favorite for cafe in cafes),
     )

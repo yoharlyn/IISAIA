@@ -88,6 +88,7 @@ function cafeCard(cafe) {
   const description = element("p", "description", cafe.description);
   const actions = element("div", "card-actions");
   actions.append(
+    actionButton("Visitas", "visits", cafe.id, "button button-primary"),
     actionButton("Editar", "edit", cafe.id),
     actionButton("Eliminar", "delete", cafe.id, "button button-danger"),
   );
@@ -150,4 +151,3 @@ export function setListState(message, { error = false, loading = false } = {}) {
   grid.setAttribute("aria-busy", String(loading));
   document.querySelector("#retry-load").hidden = !error;
 }
-

@@ -10,8 +10,10 @@ __pycache__/
 *.db
 *.db-shm
 *.db-wal
+data/uploads/
 
 # Entorno y sistema
 .env
+.env.*
+!.env.example
 .DS_Store
-

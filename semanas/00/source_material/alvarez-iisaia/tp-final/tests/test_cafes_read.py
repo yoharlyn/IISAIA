@@ -27,6 +27,12 @@ def test_get_cafe_returns_all_public_fields(client):
         "id",
         "name",
         "neighborhood",
+        "place_id",
+        "selected_address",
+        "latitude",
+        "longitude",
+        "location_status",
+        "location_expires_at",
         "description",
         "image_url",
         "visit_status",
@@ -52,6 +58,7 @@ def test_search_treats_sql_wildcards_as_literals(client, app):
     with Session(app.state.engine) as session:
         session.add(
             Cafe(
+                owner_id=client.get("/api/session").json()["user"]["id"],
                 name="Café 100%",
                 neighborhood="Centro",
                 description="Nombre usado para comprobar búsqueda literal.",
