@@ -10,7 +10,6 @@ from backend.auth import Auth0Provider, AuthProvider
 from backend.auth_routes import auth_router, session_router
 from backend.config import Settings
 from backend.routes import router
-from backend.seed import seed_cafes
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -32,8 +31,7 @@ def create_app(
         app.state.engine = engine
         app.state.seed_on_startup = seed_on_startup
         SQLModel.metadata.create_all(engine)
-        if seed_on_startup:
-            seed_cafes(engine)
+        # V2 no crea datos personales sin un propietario autenticado.
         yield
 
     application = FastAPI(title="Coffee Atlas API", lifespan=lifespan)

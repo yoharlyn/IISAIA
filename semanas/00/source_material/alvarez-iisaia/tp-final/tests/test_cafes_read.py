@@ -52,6 +52,7 @@ def test_search_treats_sql_wildcards_as_literals(client, app):
     with Session(app.state.engine) as session:
         session.add(
             Cafe(
+                owner_id=client.get("/api/session").json()["user"]["id"],
                 name="Café 100%",
                 neighborhood="Centro",
                 description="Nombre usado para comprobar búsqueda literal.",
