@@ -109,9 +109,9 @@ def test_recommendations_drop_outside_caba_and_permanently_closed(client, app):
     assert response.json() == []
 
 
-def test_prepare_and_save_require_confirmed_address_and_local_name(client, app):
+def test_prepare_and_save_use_the_canonical_details_address(client, app):
     prepare = client.post("/api/recommendations/recommendation-1/prepare-save")
-    mismatch = client.post(
+    saved = client.post(
         "/api/recommendations/recommendation-1/save",
         json={
             "name": "Nombre local",
@@ -119,18 +119,9 @@ def test_prepare_and_save_require_confirmed_address_and_local_name(client, app):
             "selected_address": "Dirección diferente",
         },
     )
-    saved = client.post(
-        "/api/recommendations/recommendation-1/save",
-        json={
-            "name": "Nombre local",
-            "description": "Confirmada por la persona usuaria.",
-            "selected_address": "Av. Corrientes 1000, CABA",
-        },
-    )
 
     assert prepare.status_code == 200
     assert prepare.json()["attribution"] == "Google Maps"
-    assert mismatch.status_code == 422
     assert saved.status_code == 201
     with Session(app.state.engine) as db:
         cafe = db.exec(select(Cafe).where(Cafe.place_id == "recommendation-1")).one()

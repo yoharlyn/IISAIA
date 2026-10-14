@@ -20,10 +20,6 @@ def places_provider(request: Request) -> PlacesProvider:
     return request.app.state.places_provider
 
 
-def _comparable_address(value: str) -> str:
-    return " ".join(value.casefold().split()).rstrip(".")
-
-
 async def verify_place_selection(
     provider: PlacesProvider, *, place_id: str, selected_address: str
 ) -> VerifiedLocation:
@@ -36,13 +32,6 @@ async def verify_place_selection(
         ) from None
     if details.place_id != place_id:
         raise HTTPException(status_code=422, detail="El Place ID no coincide.")
-    if _comparable_address(details.formatted_address) != _comparable_address(
-        selected_address
-    ):
-        raise HTTPException(
-            status_code=422,
-            detail="La dirección seleccionada no coincide con Place Details.",
-        )
     try:
         neighborhood = validate_caba_location(
             details.location, details.address_components
@@ -52,7 +41,7 @@ async def verify_place_selection(
     fetched_at = utc_now()
     return VerifiedLocation(
         details=details,
-        selected_address=selected_address,
+        selected_address=details.formatted_address,
         neighborhood=neighborhood,
         fetched_at=fetched_at,
         expires_at=location_expiry(fetched_at),

@@ -39,19 +39,66 @@ def test_free_text_without_place_selection_is_rejected(client):
     assert response.status_code == 422
 
 
-def test_selected_address_must_match_live_details(client):
+def test_profile_accepts_an_address_variant_for_the_same_place_id(client):
     response = client.patch(
         "/api/profile",
         json={
             "home": {
                 "place_id": "home-place",
-                "selected_address": "Dirección inventada 123",
+                "selected_address": "Av Corrientes 1000",
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["home_place_id"] == "home-place"
+    assert response.json()["home_selected_address"] == TEST_ADDRESS
+
+
+def test_profile_never_persists_a_client_manipulated_address(client, app):
+    manipulated = "Dirección manipulada por el cliente 999"
+
+    response = client.patch(
+        "/api/profile",
+        json={
+            "home": {
+                "place_id": "home-place",
+                "selected_address": manipulated,
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["home_selected_address"] == TEST_ADDRESS
+    with Session(app.state.engine) as db:
+        user = db.exec(select(User)).one()
+        assert user.home_selected_address == TEST_ADDRESS
+        assert user.home_selected_address != manipulated
+
+
+def test_profile_still_rejects_a_mismatched_place_id(client, app):
+    original_details = app.state.places_provider.details
+
+    async def mismatched_details(_place_id):
+        return await original_details("different-place")
+
+    app.state.places_provider.details = mismatched_details
+    response = client.patch(
+        "/api/profile",
+        json={
+            "home": {
+                "place_id": "home-place",
+                "selected_address": "Av Corrientes 1000",
             }
         },
     )
 
     assert response.status_code == 422
-    assert "no coincide" in response.json()["detail"]
+    assert response.json()["detail"] == "El Place ID no coincide."
+    with Session(app.state.engine) as db:
+        user = db.exec(select(User)).one()
+        assert user.home_place_id is None
+        assert user.home_selected_address is None
 
 
 def test_same_place_is_unique_per_owner_but_allowed_for_different_users(client, app):
