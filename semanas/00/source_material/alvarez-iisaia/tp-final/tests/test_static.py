@@ -35,7 +35,30 @@ def test_security_headers_allow_only_the_required_google_maps_origins(client):
     assert "https://*.gstatic.com" in policy
     assert "https://*.google.com" in policy
     assert "https://*.googleusercontent.com" in policy
+    assert "img-src 'self' data: http: https:" in policy
     assert "*;" not in policy
+
+
+def test_terms_and_privacy_pages_are_accessible_and_linked(client):
+    home = client.get("/")
+    terms = client.get("/terms.html")
+    privacy = client.get("/privacy.html")
+
+    assert terms.status_code == 200
+    assert privacy.status_code == 200
+    assert '<html lang="es">' in terms.text
+    assert '<html lang="es">' in privacy.text
+    assert '<main class="legal-main">' in terms.text
+    assert '<main class="legal-main">' in privacy.text
+    assert 'href="/terms.html"' in home.text
+    assert 'href="/privacy.html"' in home.text
+    assert 'href="/privacy.html"' in terms.text
+    assert 'href="/terms.html"' in privacy.text
+    assert "Auth0" in privacy.text
+    assert "Google Maps" in privacy.text
+    assert "ubicación" in privacy.text.lower()
+    assert "fotografías" in privacy.text.lower()
+    assert "contacto@" not in terms.text + privacy.text
 
 
 def test_fastapi_documentation_is_registered_before_static_files(client):

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Información de privacidad de Coffee Atlas.">
+    <title>Privacidad · Coffee Atlas</title>
+    <link rel="stylesheet" href="/css/styles.css">
+  </head>
+  <body>
+    <header class="legal-header"><a href="/">Coffee Atlas · Volver al atlas</a></header>
+    <main class="legal-main">
+      <p class="eyebrow">Información del proyecto</p>
+      <h1>Privacidad</h1>
+      <p>Coffee Atlas es una aplicación educativa que se ejecuta localmente. Esta página describe los datos que intervienen en su funcionamiento sin afirmar certificaciones o garantías legales.</p>
+
+      <section aria-labelledby="local-data-title">
+        <h2 id="local-data-title">Datos almacenados localmente</h2>
+        <ul>
+          <li>Identificador de Auth0, email observado y nombre visible.</li>
+          <li>Domicilio elegido, cafeterías, visitas, notas, valoraciones y favoritos.</li>
+          <li>Fotografías privadas de visitas, guardadas en el equipo.</li>
+          <li>Sesiones locales opacas; SQLite conserva sólo el hash del token.</li>
+        </ul>
+        <p>La base SQLite y el directorio de fotos deben respaldarse juntos. No existe sincronización cloud propia de Coffee Atlas.</p>
+      </section>
+
+      <section aria-labelledby="auth0-title">
+        <h2 id="auth0-title">Auth0</h2>
+        <p>Registro, login, recuperación de contraseña e identidad se procesan mediante Auth0 Universal Login. Coffee Atlas no guarda contraseñas ni refresh tokens. Una revocación externa en Auth0 no invalida de inmediato una sesión local ya creada.</p>
+      </section>
+
+      <section aria-labelledby="google-title">
+        <h2 id="google-title">Google Maps</h2>
+        <p>Al seleccionar una dirección o solicitar recomendaciones se envían a Google Maps los datos necesarios para esa operación. Coffee Atlas conserva Place IDs, la dirección elegida y coordenadas con vencimiento; rating, reseñas, estado comercial, apertura, componentes y enlaces se consultan para la respuesta actual y no se guardan como un historial general.</p>
+      </section>
+
+      <section aria-labelledby="location-title">
+        <h2 id="location-title">Ubicación actual</h2>
+        <p>La ubicación del navegador se solicita sólo mediante una acción explícita. Permanece en memoria y, al buscar recomendaciones, se envía transitoriamente en el cuerpo de una solicitud sin caché. No se incorpora a URLs, SQLite ni almacenamiento persistente del navegador.</p>
+      </section>
+
+      <section aria-labelledby="control-title">
+        <h2 id="control-title">Control local</h2>
+        <p>Las cafeterías, visitas y fotos pertenecen a la persona autenticada. El logout elimina la sesión local correspondiente. La eliminación o respaldo de datos depende de las acciones disponibles en la aplicación y del manejo local de SQLite y los archivos.</p>
+      </section>
+    </main>
+    <footer class="legal-footer"><a href="/">Volver al atlas</a><a href="/terms.html">Leer Términos</a></footer>
+  </body>
+</html>

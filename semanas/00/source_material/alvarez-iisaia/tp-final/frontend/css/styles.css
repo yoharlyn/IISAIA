@@ -99,6 +99,16 @@ textarea { resize: vertical; }
 .factor-intro, .opening-note { margin-bottom: 6px; font-size: .82rem; }
 .factor-list { margin: 0; padding-left: 20px; color: var(--espresso-500); font-size: .82rem; }
 .google-maps-link { display: inline-block; color: var(--terracotta-700); font-size: .85rem; font-weight: 750; }
+
+.legal-header, .legal-main, .legal-footer { width: min(100% - 2rem, 820px); margin-inline: auto; }
+.legal-header { padding-block: 1.5rem; border-bottom: 1px solid var(--cream-300); }
+.legal-header a, .legal-footer a, footer nav a { color: var(--terracotta-700); font-weight: 750; }
+.legal-main { padding-block: clamp(2rem, 6vw, 5rem); }
+.legal-main h1 { margin-bottom: 1rem; }
+.legal-main section + section { margin-top: 2rem; }
+.legal-main li + li { margin-top: .5rem; }
+.legal-footer { display: flex; flex-wrap: wrap; gap: 1rem; padding-block: 1.5rem 2.5rem; border-top: 1px solid var(--cream-300); }
+footer nav { display: flex; flex-wrap: wrap; gap: 1rem; }
 .recommendation-save { margin-top: auto; }
 .recommendation-save p { color: var(--espresso-500); font-size: .82rem; }
 .recommendation-unavailable { grid-column: 1 / -1; }

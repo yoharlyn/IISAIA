@@ -34,7 +34,7 @@ CONTENT_SECURITY_POLICY = "; ".join(
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
         (
-            "img-src 'self' data: http: https://*.googleapis.com https://*.gstatic.com "
+            "img-src 'self' data: http: https: https://*.googleapis.com https://*.gstatic.com "
             "https://*.google.com https://*.googleusercontent.com"
         ),
         (
