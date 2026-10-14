@@ -28,6 +28,9 @@ class Settings:
     auth0_callback_url: str = f"{CANONICAL_BASE_URL}/auth/callback"
     auth0_logout_return_url: str = f"{CANONICAL_BASE_URL}/"
     legacy_owner_auth0_sub: str = ""
+    google_maps_browser_key: str = ""
+    google_maps_server_key: str = ""
+    google_map_id: str = ""
     database_url: str = ""
     upload_dir: str = ""
 
@@ -49,6 +52,9 @@ class Settings:
                 "AUTH0_LOGOUT_RETURN_URL", f"{CANONICAL_BASE_URL}/"
             ),
             legacy_owner_auth0_sub=_env("LEGACY_OWNER_AUTH0_SUB"),
+            google_maps_browser_key=_env("GOOGLE_MAPS_BROWSER_KEY"),
+            google_maps_server_key=_env("GOOGLE_MAPS_SERVER_KEY"),
+            google_map_id=_env("GOOGLE_MAP_ID"),
             database_url=_env("DATABASE_URL"),
             upload_dir=_env("UPLOAD_DIR"),
         ).validated()
@@ -98,4 +104,8 @@ class Settings:
             "auth0_configured": str(
                 bool(self.auth0_domain and self.auth0_client_id and self.auth0_client_secret)
             ).lower(),
+            "google_browser_configured": str(
+                bool(self.google_maps_browser_key and self.google_map_id)
+            ).lower(),
+            "google_server_configured": str(bool(self.google_maps_server_key)).lower(),
         }

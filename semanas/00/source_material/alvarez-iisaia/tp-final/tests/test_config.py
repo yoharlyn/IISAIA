@@ -45,6 +45,8 @@ def test_public_summary_never_contains_secret_values():
         "app_base_url": CANONICAL_BASE_URL,
         "app_env": "development",
         "auth0_configured": "true",
+        "google_browser_configured": "false",
+        "google_server_configured": "false",
     }
     assert settings.auth0_client_secret not in repr(summary)
 
