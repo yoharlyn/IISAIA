@@ -34,16 +34,21 @@ def escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def latest_visit(session: Session, cafe: Cafe) -> Visit | None:
-    return session.exec(
+def visits_for_cafe(session: Session, cafe: Cafe) -> list[Visit]:
+    return list(session.exec(
         select(Visit)
         .where(Visit.cafe_id == cafe.id, Visit.owner_id == cafe.owner_id)
         .order_by(Visit.visited_at.desc(), Visit.id.desc())
-    ).first()
+    ).all())
+
+
+def average_rating(visits: list[Visit], field: str) -> float | None:
+    values = [getattr(visit, field) for visit in visits if getattr(visit, field) is not None]
+    return round(sum(values) / len(values), 2) if values else None
 
 
 def serialize_cafe(session: Session, cafe: Cafe) -> CafeRead:
-    visit = latest_visit(session, cafe)
+    visits = visits_for_cafe(session, cafe)
     location_fresh = location_is_fresh(cafe.location_expires_at)
     location_status = cafe.location_status
     if cafe.place_id and not location_fresh:
@@ -60,12 +65,12 @@ def serialize_cafe(session: Session, cafe: Cafe) -> CafeRead:
         location_expires_at=cafe.location_expires_at,
         description=cafe.description,
         image_url=cafe.image_url,
-        visit_status=VisitStatus.VISITED if visit else VisitStatus.PENDING,
+        visit_status=VisitStatus.VISITED if visits else VisitStatus.PENDING,
         is_favorite=cafe.is_favorite,
-        coffee_rating=visit.coffee_rating if visit else None,
-        food_rating=visit.food_rating if visit else None,
-        ambience_rating=visit.ambience_rating if visit else None,
-        service_rating=visit.service_rating if visit else None,
+        coffee_rating=average_rating(visits, "coffee_rating"),
+        food_rating=average_rating(visits, "food_rating"),
+        ambience_rating=average_rating(visits, "ambience_rating"),
+        service_rating=average_rating(visits, "service_rating"),
         created_at=cafe.created_at,
         updated_at=cafe.updated_at,
     )
@@ -223,7 +228,8 @@ async def update_cafe(
             if key not in RATING_FIELDS and key not in {"visit_status", "neighborhood"}
         }
     )
-    visit = latest_visit(session, cafe)
+    visits = visits_for_cafe(session, cafe)
+    visit = visits[0] if visits else None
     requested_status = supplied.get("visit_status")
     ratings_supplied = any(field in supplied for field in RATING_FIELDS)
     if requested_status == VisitStatus.PENDING:

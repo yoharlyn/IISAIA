@@ -15,6 +15,7 @@ from backend.google_places import GooglePlacesProvider, PlacesProvider
 from backend.profile_routes import router as profile_router
 from backend.config_routes import router as config_router
 from backend.recommendation_routes import router as recommendation_router
+from backend.visit_routes import router as visit_router
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -60,6 +61,7 @@ def create_app(
     application.include_router(profile_router)
     application.include_router(config_router)
     application.include_router(recommendation_router)
+    application.include_router(visit_router)
     application.include_router(router)
     application.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     return application

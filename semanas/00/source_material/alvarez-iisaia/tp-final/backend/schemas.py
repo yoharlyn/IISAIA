@@ -115,10 +115,10 @@ class CafeRead(BaseModel):
     image_url: str | None
     visit_status: VisitStatus
     is_favorite: bool
-    coffee_rating: int | None
-    food_rating: int | None
-    ambience_rating: int | None
-    service_rating: int | None
+    coffee_rating: float | None
+    food_rating: float | None
+    ambience_rating: float | None
+    service_rating: float | None
     created_at: datetime
     updated_at: datetime
 
@@ -239,6 +239,90 @@ class ProfileRead(BaseModel):
     def ensure_home_expiry_utc(cls, value: datetime | None) -> datetime | None:
         if value is None:
             return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
+VisitNote = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=1000),
+]
+
+
+class VisitCreate(StrictSchema):
+    visited_at: datetime | None = None
+    note: VisitNote | None = None
+    coffee_rating: Rating | None = None
+    food_rating: Rating | None = None
+    ambience_rating: Rating | None = None
+    service_rating: Rating | None = None
+    date_is_estimated: bool = False
+
+    @field_validator("visited_at", mode="after")
+    @classmethod
+    def normalize_visited_at(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def normalize_note(cls, value):
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return None
+        return value
+
+
+class VisitUpdate(StrictSchema):
+    visited_at: datetime | None = None
+    note: VisitNote | None = None
+    coffee_rating: Rating | None = None
+    food_rating: Rating | None = None
+    ambience_rating: Rating | None = None
+    service_rating: Rating | None = None
+    date_is_estimated: bool | None = None
+
+    @field_validator("visited_at", mode="after")
+    @classmethod
+    def normalize_visited_at(cls, value: datetime | None) -> datetime | None:
+        return VisitCreate.normalize_visited_at(value)
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def normalize_note(cls, value):
+        return VisitCreate.normalize_note(value)
+
+    @model_validator(mode="after")
+    def validate_patch(self) -> Self:
+        if not self.model_fields_set:
+            raise ValueError("Debés enviar al menos un campo para actualizar.")
+        for field_name in {"visited_at", "date_is_estimated"} & self.model_fields_set:
+            if getattr(self, field_name) is None:
+                raise ValueError(f"{field_name} no puede ser null.")
+        return self
+
+
+class VisitRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    cafe_id: int
+    visited_at: datetime
+    note: str | None
+    coffee_rating: int | None
+    food_rating: int | None
+    ambience_rating: int | None
+    service_rating: int | None
+    date_is_estimated: bool
+    created_at: datetime
+    updated_at: datetime
+
+    @field_validator("visited_at", "created_at", "updated_at", mode="after")
+    @classmethod
+    def ensure_visit_utc(cls, value: datetime) -> datetime:
         if value.tzinfo is None:
             return value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc)
