@@ -1,6 +1,7 @@
-import { createCafe, deleteCafe, getStats, listCafes, updateCafe } from "./api.js";
+import { createCafe, deleteCafe, getConfig, getStats, listCafes, updateCafe } from "./api.js";
 import { populateNeighborhoods, renderCafes, renderStats, setListState } from "./ui.js";
 import { initializeSession } from "./auth.js";
+import { loadMapsScript, renderAtlasMap, requestCurrentPosition } from "./map.js";
 
 const filterForm = document.querySelector("#filter-form");
 const cafeDialog = document.querySelector("#cafe-dialog");
@@ -16,6 +17,8 @@ let cafesById = new Map();
 let cafeToDelete = null;
 let returnFocus = null;
 let messageTimer = null;
+let mapConfig = { google_maps_enabled: false };
+let allCafesForMap = [];
 
 function currentFilters() {
   const data = new FormData(filterForm);
@@ -41,12 +44,46 @@ async function loadData() {
       getStats(),
     ]);
     cafesById = new Map(cafes.map((cafe) => [String(cafe.id), cafe]));
+    allCafesForMap = allCafes;
     renderCafes(cafes, hasFilters(filters));
     populateNeighborhoods(allCafes, filters.neighborhood);
     renderStats(stats);
+    renderAtlasMap(document.querySelector("#atlas-map"), allCafesForMap, mapConfig);
     setListState("");
   } catch (error) {
     setListState(error.message, { error: true });
+  }
+}
+
+async function initializeMap() {
+  const status = document.querySelector("#map-status");
+  try {
+    mapConfig = await getConfig();
+    if (!mapConfig.google_maps_enabled) {
+      status.textContent = "Mapa no disponible: Google Maps todavía no está configurado.";
+      return;
+    }
+    await loadMapsScript(mapConfig);
+    renderAtlasMap(document.querySelector("#atlas-map"), allCafesForMap, mapConfig);
+    status.textContent = "Mapa listo. Las ubicaciones vencidas no se muestran.";
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
+async function locateUser() {
+  const button = document.querySelector("#locate-user");
+  const status = document.querySelector("#map-status");
+  button.disabled = true;
+  status.textContent = "Solicitando tu ubicación…";
+  try {
+    await requestCurrentPosition();
+    renderAtlasMap(document.querySelector("#atlas-map"), allCafesForMap, mapConfig);
+    status.textContent = "Tu ubicación se usa sólo en esta vista y no se guarda.";
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -206,7 +243,11 @@ document.querySelector("#retry-load").addEventListener("click", loadData);
 document.querySelector("#close-cafe-dialog").addEventListener("click", () => closeDialog(cafeDialog));
 document.querySelector("#cancel-cafe").addEventListener("click", () => closeDialog(cafeDialog));
 document.querySelector("#cancel-delete").addEventListener("click", () => closeDialog(deleteDialog));
+document.querySelector("#locate-user").addEventListener("click", locateUser);
 [cafeDialog, deleteDialog].forEach((dialog) => dialog.addEventListener("close", () => returnFocus?.focus()));
 
 fillRatings();
-initializeSession(loadData);
+initializeSession(async () => {
+  await loadData();
+  await initializeMap();
+});

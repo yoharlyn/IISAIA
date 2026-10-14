@@ -23,6 +23,7 @@ def test_frontend_assets_are_served(client):
     app_module = client.get("/js/app.js")
     ui_module = client.get("/js/ui.js")
     auth_module = client.get("/js/auth.js")
+    map_module = client.get("/js/map.js")
 
     assert stylesheet.status_code == 200
     assert stylesheet.headers["content-type"].startswith("text/css")
@@ -36,6 +37,30 @@ def test_frontend_assets_are_served(client):
     assert ui_module.status_code == 200
     assert "createCafe" in app_module.text
     assert "textContent" in ui_module.text
+    assert map_module.status_code == 200
+    assert "navigator.geolocation" in map_module.text
+    assert "localStorage" not in map_module.text
+    assert "sessionStorage" not in map_module.text
+    assert 'id="atlas-map"' in client.get("/").text
+
+
+def test_public_config_never_exposes_server_key(client, app):
+    app.state.settings = app.state.settings.__class__(
+        session_secret="t" * 32,
+        google_maps_browser_key="browser-visible",
+        google_maps_server_key="server-secret",
+        google_map_id="map-id",
+    ).validated()
+
+    response = client.get("/api/config")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "google_maps_enabled": True,
+        "google_maps_browser_key": "browser-visible",
+        "google_map_id": "map-id",
+    }
+    assert "server-secret" not in response.text
 
 
 def test_login_shell_contains_auth0_links_and_no_secrets(client):

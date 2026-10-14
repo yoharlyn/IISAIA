@@ -79,6 +79,16 @@
         </form>
       </section>
 
+      <section class="map-section" aria-labelledby="map-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">Mapa</p><h2 id="map-title">Tu atlas en CABA</h2></div>
+          <button id="locate-user" class="button button-quiet" type="button">Usar mi ubicación en esta vista</button>
+        </div>
+        <p id="map-status" class="status-message" role="status" aria-live="polite">Preparando mapa…</p>
+        <div id="atlas-map" class="atlas-map" data-map-state="loading" aria-label="Mapa de cafeterías"></div>
+        <p class="map-note">La ubicación actual permanece sólo en memoria. Distancias en línea recta, no tiempos de viaje.</p>
+      </section>
+
       <section class="atlas-section" aria-labelledby="atlas-title">
         <div class="section-heading">
           <div><p class="eyebrow">Colección</p><h2 id="atlas-title">Mis cafeterías</h2></div>
