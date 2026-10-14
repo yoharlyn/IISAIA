@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import CheckConstraint
+from sqlalchemy import CheckConstraint, Column, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -10,8 +10,49 @@ class VisitStatus(str, Enum):
     VISITED = "VISITED"
 
 
+class IdentityStatus(str, Enum):
+    PENDING_LOGIN = "PENDING_LOGIN"
+    ACTIVE = "ACTIVE"
+
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+class User(SQLModel, table=True):
+    __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint(
+            "identity_status IN ('PENDING_LOGIN', 'ACTIVE')",
+            name="ck_users_identity_status",
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    auth0_sub: str = Field(
+        sa_column=Column(String(255), unique=True, index=True, nullable=False)
+    )
+    identity_status: IdentityStatus = Field(default=IdentityStatus.ACTIVE, index=True)
+    email: str | None = Field(default=None, max_length=320)
+    display_name: str = Field(default="Usuario", max_length=100)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class LocalSession(SQLModel, table=True):
+    __tablename__ = "sessions"
+    __table_args__ = (
+        UniqueConstraint("token_hash", name="uq_sessions_token_hash"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    token_hash: str = Field(max_length=64, index=True)
+    csrf_hash: str = Field(max_length=64)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    created_at: datetime = Field(default_factory=utc_now)
+    last_seen_at: datetime = Field(default_factory=utc_now)
+    idle_expires_at: datetime
+    absolute_expires_at: datetime
 
 
 class Cafe(SQLModel, table=True):
@@ -61,4 +102,3 @@ class Cafe(SQLModel, table=True):
     service_rating: int | None = Field(default=None, ge=1, le=5)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
-
