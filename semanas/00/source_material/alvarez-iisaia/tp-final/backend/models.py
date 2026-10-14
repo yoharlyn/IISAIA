@@ -41,6 +41,15 @@ class User(SQLModel, table=True):
     identity_status: IdentityStatus = Field(default=IdentityStatus.ACTIVE, index=True)
     email: str | None = Field(default=None, max_length=320)
     display_name: str = Field(default="Usuario", max_length=100)
+    home_place_id: str | None = Field(default=None, max_length=255)
+    home_selected_address: str | None = Field(default=None, max_length=500)
+    home_latitude: float | None = Field(default=None)
+    home_longitude: float | None = Field(default=None)
+    home_location_fetched_at: datetime | None = Field(default=None)
+    home_location_expires_at: datetime | None = Field(default=None)
+    home_neighborhood: str | None = Field(default=None, max_length=80)
+    home_caba_verified_at: datetime | None = Field(default=None)
+    home_caba_polygon_version: str | None = Field(default=None, max_length=80)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
@@ -88,7 +97,14 @@ class Cafe(SQLModel, table=True):
     image_url: str | None = Field(default=None, max_length=2048)
     is_favorite: bool = Field(default=False, index=True)
     place_id: str | None = Field(default=None, max_length=255)
+    place_id_checked_at: datetime | None = Field(default=None)
     selected_address: str | None = Field(default=None, max_length=500)
+    latitude: float | None = Field(default=None)
+    longitude: float | None = Field(default=None)
+    location_fetched_at: datetime | None = Field(default=None)
+    location_expires_at: datetime | None = Field(default=None)
+    caba_verified_at: datetime | None = Field(default=None)
+    caba_polygon_version: str | None = Field(default=None, max_length=80)
     location_status: LocationStatus = Field(default=LocationStatus.NEEDS_LOCATION)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
@@ -116,3 +132,16 @@ class Visit(SQLModel, table=True):
     migration_key: str | None = Field(default=None, max_length=255, unique=True)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
+
+
+class PlaceDiscovery(SQLModel, table=True):
+    __tablename__ = "place_discoveries"
+    __table_args__ = (
+        UniqueConstraint("owner_id", "place_id", name="uq_discoveries_owner_place"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="users.id", index=True)
+    place_id: str = Field(max_length=255, index=True)
+    first_seen_at: datetime = Field(default_factory=utc_now)
+    last_seen_at: datetime = Field(default_factory=utc_now)

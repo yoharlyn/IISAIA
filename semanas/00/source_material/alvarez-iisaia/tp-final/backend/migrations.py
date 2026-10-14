@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class MigrationError(RuntimeError):
@@ -59,6 +59,11 @@ def inspect_database(path: Path) -> DatabaseStatus:
                 row[1] for row in connection.execute("PRAGMA table_info(cafes)")
             }
             if "owner_id" in columns:
+                if "latitude" not in columns:
+                    return DatabaseStatus(
+                        "v2_geo_pending",
+                        "La base V2 requiere la ampliación geográfica manual.",
+                    )
                 return DatabaseStatus("v2", "La base usa el esquema V2.")
             if {"visit_status", "coffee_rating"}.issubset(columns):
                 return DatabaseStatus("v1", "La base usa el esquema V1 y requiere migración manual.")
@@ -84,6 +89,15 @@ def _create_v2_tables(connection: sqlite3.Connection) -> None:
             identity_status VARCHAR(20) NOT NULL,
             email VARCHAR(320),
             display_name VARCHAR(100) NOT NULL,
+            home_place_id VARCHAR(255),
+            home_selected_address VARCHAR(500),
+            home_latitude FLOAT,
+            home_longitude FLOAT,
+            home_location_fetched_at DATETIME,
+            home_location_expires_at DATETIME,
+            home_neighborhood VARCHAR(80),
+            home_caba_verified_at DATETIME,
+            home_caba_polygon_version VARCHAR(80),
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
             CONSTRAINT ck_users_identity_status
@@ -108,7 +122,14 @@ def _create_v2_tables(connection: sqlite3.Connection) -> None:
             image_url VARCHAR(2048),
             is_favorite BOOLEAN NOT NULL DEFAULT 0,
             place_id VARCHAR(255),
+            place_id_checked_at DATETIME,
             selected_address VARCHAR(500),
+            latitude FLOAT,
+            longitude FLOAT,
+            location_fetched_at DATETIME,
+            location_expires_at DATETIME,
+            caba_verified_at DATETIME,
+            caba_polygon_version VARCHAR(80),
             location_status VARCHAR(20) NOT NULL DEFAULT 'NEEDS_LOCATION',
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
@@ -135,6 +156,14 @@ def _create_v2_tables(connection: sqlite3.Connection) -> None:
             new_id INTEGER NOT NULL,
             PRIMARY KEY(entity_type, legacy_id)
         );
+        CREATE TABLE IF NOT EXISTS place_discoveries (
+            id INTEGER PRIMARY KEY,
+            owner_id INTEGER NOT NULL REFERENCES users(id),
+            place_id VARCHAR(255) NOT NULL,
+            first_seen_at DATETIME NOT NULL,
+            last_seen_at DATETIME NOT NULL,
+            UNIQUE(owner_id, place_id)
+        );
         CREATE TABLE IF NOT EXISTS schema_migrations (
             version INTEGER PRIMARY KEY,
             applied_at DATETIME NOT NULL
@@ -143,6 +172,51 @@ def _create_v2_tables(connection: sqlite3.Connection) -> None:
     for statement in script.split(";"):
         if statement.strip():
             connection.execute(statement)
+
+
+def _upgrade_geo_schema(connection: sqlite3.Connection) -> None:
+    user_columns = (
+        "home_place_id VARCHAR(255)",
+        "home_selected_address VARCHAR(500)",
+        "home_latitude FLOAT",
+        "home_longitude FLOAT",
+        "home_location_fetched_at DATETIME",
+        "home_location_expires_at DATETIME",
+        "home_neighborhood VARCHAR(80)",
+        "home_caba_verified_at DATETIME",
+        "home_caba_polygon_version VARCHAR(80)",
+    )
+    cafe_columns = (
+        "place_id_checked_at DATETIME",
+        "latitude FLOAT",
+        "longitude FLOAT",
+        "location_fetched_at DATETIME",
+        "location_expires_at DATETIME",
+        "caba_verified_at DATETIME",
+        "caba_polygon_version VARCHAR(80)",
+    )
+    existing_users = {
+        row[1] for row in connection.execute("PRAGMA table_info(users)")
+    }
+    existing_cafes = {
+        row[1] for row in connection.execute("PRAGMA table_info(cafes)")
+    }
+    for definition in user_columns:
+        if definition.split()[0] not in existing_users:
+            connection.execute(f"ALTER TABLE users ADD COLUMN {definition}")
+    for definition in cafe_columns:
+        if definition.split()[0] not in existing_cafes:
+            connection.execute(f"ALTER TABLE cafes ADD COLUMN {definition}")
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS place_discoveries (
+             id INTEGER PRIMARY KEY,
+             owner_id INTEGER NOT NULL REFERENCES users(id),
+             place_id VARCHAR(255) NOT NULL,
+             first_seen_at DATETIME NOT NULL,
+             last_seen_at DATETIME NOT NULL,
+             UNIQUE(owner_id, place_id)
+           )"""
+    )
 
 
 def upgrade_database(
@@ -155,6 +229,25 @@ def upgrade_database(
     current = inspect_database(database)
     if current.kind == "v2":
         return "La base ya está actualizada; no se realizó ninguna escritura."
+    if current.kind == "v2_geo_pending":
+        integrity_check(backup)
+        now = datetime.now(timezone.utc).isoformat()
+        connection = _connect(database)
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            _upgrade_geo_schema(connection)
+            connection.execute(
+                "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+                (SCHEMA_VERSION, now),
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+        verify_database(database)
+        return "Ampliación geográfica V2 completa."
     if current.kind != "v1":
         raise MigrationError(current.message)
     if not owner_sub.strip():

@@ -31,9 +31,12 @@ def create_app(
         app.state.seed_on_startup = seed_on_startup
         if engine.url.database and engine.url.database != ":memory:":
             database_path = Path(engine.url.database)
-            if database_path.exists() and inspect_database(database_path).kind == "v1":
+            database_kind = (
+                inspect_database(database_path).kind if database_path.exists() else "empty"
+            )
+            if database_kind in {"v1", "v2_geo_pending"}:
                 raise RuntimeError(
-                    "La base V1 requiere una migración manual; ejecutá backend.migrations status."
+                    "La base requiere una migración manual; ejecutá backend.migrations status."
                 )
         SQLModel.metadata.create_all(engine)
         # V2 no crea datos personales sin un propietario autenticado.

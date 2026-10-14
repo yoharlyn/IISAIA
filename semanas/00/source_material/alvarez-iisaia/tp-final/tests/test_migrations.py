@@ -154,3 +154,57 @@ def test_startup_refuses_v1_without_modifying_it(tmp_path):
             pass
 
     assert database.read_bytes() == before
+
+
+def test_geo_schema_upgrade_is_explicit_transactional_and_idempotent(tmp_path):
+    database = tmp_path / "atlas.db"
+    v1_backup = tmp_path / "atlas-v1.db"
+    phase1_backup = tmp_path / "atlas-phase1.db"
+    create_v1(database, rows=0)
+    create_backup(database, v1_backup)
+    upgrade_database(database, v1_backup, "auth0|owner")
+    with sqlite3.connect(database) as db:
+        db.execute("DELETE FROM schema_migrations WHERE version = 3")
+        for table in ("place_discoveries",):
+            db.execute(f"DROP TABLE {table}")
+        # SQLite no permite eliminar columnas de forma portable en todas las
+        # versiones soportadas; recreamos sólo cafes con el esquema de Fase 1.
+        db.executescript(
+            """
+            ALTER TABLE cafes RENAME TO cafes_current;
+            CREATE TABLE cafes (
+              id INTEGER PRIMARY KEY, owner_id INTEGER NOT NULL REFERENCES users(id),
+              name VARCHAR(100) NOT NULL, neighborhood VARCHAR(80) NOT NULL,
+              description VARCHAR(600) NOT NULL, image_url VARCHAR(2048),
+              is_favorite BOOLEAN NOT NULL DEFAULT 0, place_id VARCHAR(255),
+              selected_address VARCHAR(500), location_status VARCHAR(20) NOT NULL,
+              created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
+              UNIQUE(owner_id, place_id));
+            INSERT INTO cafes
+              (id, owner_id, name, neighborhood, description, image_url,
+               is_favorite, place_id, selected_address, location_status,
+               created_at, updated_at)
+            SELECT id, owner_id, name, neighborhood, description, image_url,
+                   is_favorite, place_id, selected_address, location_status,
+                   created_at, updated_at FROM cafes_current;
+            DROP TABLE cafes_current;
+            INSERT INTO schema_migrations(version, applied_at) VALUES (2, 'now');
+            """
+        )
+    create_backup(database, phase1_backup)
+
+    assert inspect_database(database).kind == "v2_geo_pending"
+    before = database.read_bytes()
+    app = create_app(database_url=f"sqlite:///{database}", seed_on_startup=False)
+    with pytest.raises(RuntimeError, match="migración manual"):
+        with TestClient(app):
+            pass
+    assert database.read_bytes() == before
+
+    assert "geográfica" in upgrade_database(database, phase1_backup, "auth0|owner")
+    assert inspect_database(database).kind == "v2"
+    after = database.read_bytes()
+    assert "ya está actualizada" in upgrade_database(
+        database, phase1_backup, "auth0|owner"
+    )
+    assert database.read_bytes() == after
