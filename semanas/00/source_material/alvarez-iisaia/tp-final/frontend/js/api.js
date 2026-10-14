@@ -85,3 +85,4 @@ export function uploadVisitPhoto(visitId, file, caption) {
   return request(`${API_ROOT}/visits/${visitId}/photos`, { method: "POST", body });
 }
 export const deleteVisitPhoto = (photoId) => request(`${API_ROOT}/photos/${photoId}`, { method: "DELETE" });
+export const getDashboard = () => request(`${API_ROOT}/dashboard`);

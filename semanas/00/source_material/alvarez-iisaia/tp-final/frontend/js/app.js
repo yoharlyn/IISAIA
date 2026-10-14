@@ -5,6 +5,7 @@ import { getCurrentPositionForView, loadMapsScript, renderAtlasMap, requestCurre
 import { mountPlaceAutocomplete, showAutocompleteUnavailable } from "./places.js";
 import { renderRecommendations } from "./recommendations.js";
 import { initializeVisits } from "./visits.js";
+import { initializeDashboard } from "./dashboard.js";
 
 const filterForm = document.querySelector("#filter-form");
 const cafeDialog = document.querySelector("#cafe-dialog");
@@ -311,9 +312,12 @@ document.addEventListener("coffee-atlas:prepare-recommendation", (event) => {
 });
 [cafeDialog, deleteDialog].forEach((dialog) => dialog.addEventListener("close", () => returnFocus?.focus()));
 
-const visits = initializeVisits({ onChanged: loadData, announce: showMessage });
+const dashboard = initializeDashboard();
+const visits = initializeVisits({
+  onChanged: () => Promise.all([loadData(), dashboard.load()]),
+  announce: showMessage,
+});
 initializeSession(async () => {
-  await loadData();
-  await loadProfile();
+  await Promise.all([loadData(), loadProfile(), dashboard.load()]);
   await initializeMap();
 });

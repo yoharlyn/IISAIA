@@ -30,6 +30,7 @@ def test_frontend_assets_are_served(client):
     places_module = client.get("/js/places.js")
     recommendations_module = client.get("/js/recommendations.js")
     visits_module = client.get("/js/visits.js")
+    dashboard_module = client.get("/js/dashboard.js")
 
     assert stylesheet.status_code == 200
     assert stylesheet.headers["content-type"].startswith("text/css")
@@ -66,6 +67,14 @@ def test_frontend_assets_are_served(client):
     assert "FormData" in api_module.text
     assert 'id="visit-form"' in client.get("/").text
     assert 'accept="image/jpeg,image/png,image/webp"' not in client.get("/").text
+    assert dashboard_module.status_code == 200
+    assert "createElementNS" in dashboard_module.text
+    assert 'element("table"' in dashboard_module.text
+    assert 'element("caption"' in dashboard_module.text
+    assert "innerHTML" not in dashboard_module.text
+    assert "getDashboard" in api_module.text
+    assert 'id="dashboard-content"' in client.get("/").text
+    assert 'aria-busy="true"' in client.get("/").text
 
 
 def test_public_config_never_exposes_server_key(client, app):
