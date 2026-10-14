@@ -13,5 +13,6 @@ __pycache__/
 
 # Entorno y sistema
 .env
+.env.*
+!.env.example
 .DS_Store
-
