@@ -1,11 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlmodel import Session, func, select
 
 from backend.db import get_session
-from backend.models import Cafe, VisitStatus
-from backend.schemas import CafeRead, StatsRead
+from backend.models import Cafe, VisitStatus, utc_now
+from backend.schemas import CafeCreate, CafeRead, CafeUpdate, StatsRead
 
 router = APIRouter(prefix="/api")
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -56,9 +56,37 @@ def list_cafes(
     return session.exec(statement).all()
 
 
+@router.post("/cafes", response_model=CafeRead, status_code=status.HTTP_201_CREATED)
+def create_cafe(payload: CafeCreate, session: SessionDep):
+    cafe = Cafe(**payload.model_dump())
+    session.add(cafe)
+    session.commit()
+    session.refresh(cafe)
+    return cafe
+
+
 @router.get("/cafes/{cafe_id}", response_model=CafeRead)
 def get_cafe(cafe_id: CafeId, session: SessionDep):
     return find_cafe(session, cafe_id)
+
+
+@router.patch("/cafes/{cafe_id}", response_model=CafeRead)
+def update_cafe(cafe_id: CafeId, payload: CafeUpdate, session: SessionDep):
+    cafe = find_cafe(session, cafe_id)
+    cafe.sqlmodel_update(payload.model_dump(exclude_unset=True))
+    cafe.updated_at = utc_now()
+    session.add(cafe)
+    session.commit()
+    session.refresh(cafe)
+    return cafe
+
+
+@router.delete("/cafes/{cafe_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_cafe(cafe_id: CafeId, session: SessionDep):
+    cafe = find_cafe(session, cafe_id)
+    session.delete(cafe)
+    session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/stats", response_model=StatsRead)
@@ -79,4 +107,3 @@ def get_stats(session: SessionDep):
         pending=pending,
         favorites=favorites,
     )
-
