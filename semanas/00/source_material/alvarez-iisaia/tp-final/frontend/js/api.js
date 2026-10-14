@@ -20,7 +20,9 @@ function validationMessage(detail) {
 
 async function request(url, options = {}) {
   const config = { credentials: "same-origin", ...options, headers: { ...(options.headers || {}) } };
-  if (config.body) config.headers["Content-Type"] = "application/json";
+  if (config.body && !(config.body instanceof FormData)) {
+    config.headers["Content-Type"] = "application/json";
+  }
   if (csrfToken && !["GET", "HEAD"].includes(config.method || "GET")) {
     config.headers["X-CSRF-Token"] = csrfToken;
   }
@@ -72,3 +74,14 @@ export const deleteCafe = (id) => request(`${API_ROOT}/cafes/${id}`, { method: "
 export const searchCafes = (payload) => request(`${API_ROOT}/cafes/search`, { method: "POST", body: JSON.stringify(payload) });
 export const searchRecommendations = (payload) => request(`${API_ROOT}/recommendations/search`, { method: "POST", body: JSON.stringify(payload) });
 export const prepareRecommendation = (placeId) => request(`${API_ROOT}/recommendations/${encodeURIComponent(placeId)}/prepare-save`, { method: "POST" });
+export const listVisits = (cafeId) => request(`${API_ROOT}/cafes/${cafeId}/visits`);
+export const createVisit = (cafeId, payload) => request(`${API_ROOT}/cafes/${cafeId}/visits`, { method: "POST", body: JSON.stringify(payload) });
+export const updateVisit = (visitId, payload) => request(`${API_ROOT}/visits/${visitId}`, { method: "PATCH", body: JSON.stringify(payload) });
+export const deleteVisit = (visitId) => request(`${API_ROOT}/visits/${visitId}`, { method: "DELETE" });
+export function uploadVisitPhoto(visitId, file, caption) {
+  const body = new FormData();
+  body.append("file", file);
+  body.append("caption", caption);
+  return request(`${API_ROOT}/visits/${visitId}/photos`, { method: "POST", body });
+}
+export const deleteVisitPhoto = (photoId) => request(`${API_ROOT}/photos/${photoId}`, { method: "DELETE" });

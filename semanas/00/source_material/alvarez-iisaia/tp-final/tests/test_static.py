@@ -8,6 +8,9 @@ def test_home_is_served_by_fastapi(client):
     assert 'aria-live="polite"' in response.text
     assert '<dialog id="cafe-dialog"' in response.text
     assert '<dialog id="delete-dialog"' in response.text
+    assert '<dialog id="visit-dialog"' in response.text
+    assert 'id="visit-status"' in response.text
+    assert 'aria-live="polite"' in response.text
 
 
 def test_fastapi_documentation_is_registered_before_static_files(client):
@@ -26,6 +29,7 @@ def test_frontend_assets_are_served(client):
     map_module = client.get("/js/map.js")
     places_module = client.get("/js/places.js")
     recommendations_module = client.get("/js/recommendations.js")
+    visits_module = client.get("/js/visits.js")
 
     assert stylesheet.status_code == 200
     assert stylesheet.headers["content-type"].startswith("text/css")
@@ -53,6 +57,15 @@ def test_frontend_assets_are_served(client):
     assert 'id="home-autocomplete"' in client.get("/").text
     assert 'id="cafe-autocomplete"' in client.get("/").text
     assert "provienen de Google Maps" in client.get("/").text
+    assert visits_module.status_code == 200
+    assert "uploadVisitPhoto" in visits_module.text
+    assert "textContent" in visits_module.text
+    assert "innerHTML" not in visits_module.text
+    assert "MAX_FILE_BYTES" in visits_module.text
+    assert "MAX_PHOTOS" in visits_module.text
+    assert "FormData" in api_module.text
+    assert 'id="visit-form"' in client.get("/").text
+    assert 'accept="image/jpeg,image/png,image/webp"' not in client.get("/").text
 
 
 def test_public_config_never_exposes_server_key(client, app):

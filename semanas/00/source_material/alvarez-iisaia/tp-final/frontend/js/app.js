@@ -4,6 +4,7 @@ import { initializeSession } from "./auth.js";
 import { getCurrentPositionForView, loadMapsScript, renderAtlasMap, requestCurrentPosition } from "./map.js";
 import { mountPlaceAutocomplete, showAutocompleteUnavailable } from "./places.js";
 import { renderRecommendations } from "./recommendations.js";
+import { initializeVisits } from "./visits.js";
 
 const filterForm = document.querySelector("#filter-form");
 const cafeDialog = document.querySelector("#cafe-dialog");
@@ -166,22 +167,6 @@ function showMessage(message) {
   messageTimer = window.setTimeout(() => { region.textContent = ""; }, 4500);
 }
 
-function fillRatings() {
-  ["coffee", "food", "ambience", "service"].forEach((name) => {
-    const select = document.querySelector(`#${name}-rating`);
-    const empty = document.createElement("option");
-    empty.value = "";
-    empty.textContent = "Sin calificar";
-    const options = [1, 2, 3, 4, 5].map((rating) => {
-      const option = document.createElement("option");
-      option.value = rating;
-      option.textContent = `${rating} de 5`;
-      return option;
-    });
-    select.replaceChildren(empty, ...options);
-  });
-}
-
 function setFormValue(name, value) {
   cafeForm.elements[name].value = value ?? "";
 }
@@ -196,7 +181,6 @@ function openCafeForm(cafe = null, trigger = document.activeElement, suggestedNa
   setFormValue("name", cafe?.name || suggestedName);
   setFormValue("description", cafe?.description);
   setFormValue("image_url", cafe?.image_url);
-  setFormValue("visit_status", cafe?.visit_status || "PENDING");
   cafeSelection = null;
   setFormValue("place_id", "");
   setFormValue("selected_address", "");
@@ -204,7 +188,6 @@ function openCafeForm(cafe = null, trigger = document.activeElement, suggestedNa
     ? `Dirección guardada: ${cafe.selected_address}. Elegí otra para cambiarla.`
     : "Seleccioná una dirección de la lista para continuar.";
   cafeForm.elements.is_favorite.checked = cafe?.is_favorite || false;
-  ["coffee_rating", "food_rating", "ambience_rating", "service_rating"].forEach((field) => setFormValue(field, cafe?.[field]));
   cafeDialog.showModal();
   cafeForm.elements.name.focus();
 }
@@ -215,17 +198,11 @@ function closeDialog(dialog) {
 
 function formPayload(isEditing) {
   const data = new FormData(cafeForm);
-  const rating = (name) => data.get(name) === "" ? null : Number(data.get(name));
   const payload = {
     name: data.get("name"),
     description: data.get("description"),
     image_url: data.get("image_url").trim() || null,
-    visit_status: data.get("visit_status"),
     is_favorite: data.get("is_favorite") === "on",
-    coffee_rating: rating("coffee_rating"),
-    food_rating: rating("food_rating"),
-    ambience_rating: rating("ambience_rating"),
-    service_rating: rating("service_rating"),
   };
   if (cafeSelection) Object.assign(payload, cafeSelection);
   if (!isEditing && !cafeSelection) {
@@ -295,6 +272,7 @@ async function handleCardAction(event) {
   if (!cafe) return;
   if (button.dataset.action === "edit") openCafeForm(cafe, button);
   if (button.dataset.action === "delete") openDelete(cafe, button);
+  if (button.dataset.action === "visits") visits.open(cafe, button);
   if (button.dataset.action === "toggle-favorite") {
     button.disabled = true;
     try {
@@ -333,7 +311,7 @@ document.addEventListener("coffee-atlas:prepare-recommendation", (event) => {
 });
 [cafeDialog, deleteDialog].forEach((dialog) => dialog.addEventListener("close", () => returnFocus?.focus()));
 
-fillRatings();
+const visits = initializeVisits({ onChanged: loadData, announce: showMessage });
 initializeSession(async () => {
   await loadData();
   await loadProfile();
