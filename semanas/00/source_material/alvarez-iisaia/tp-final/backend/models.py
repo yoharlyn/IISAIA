@@ -134,6 +134,26 @@ class Visit(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class VisitPhoto(SQLModel, table=True):
+    __tablename__ = "visit_photos"
+    __table_args__ = (
+        CheckConstraint("size_bytes > 0 AND size_bytes <= 5242880"),
+        CheckConstraint("width > 0 AND height > 0 AND width * height <= 20000000"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="users.id", index=True)
+    visit_id: int = Field(foreign_key="visits.id", index=True)
+    internal_name: str = Field(max_length=80, unique=True)
+    mime_type: str = Field(max_length=40)
+    size_bytes: int
+    width: int
+    height: int
+    sha256: str = Field(max_length=64, index=True)
+    caption: str = Field(max_length=200)
+    created_at: datetime = Field(default_factory=utc_now)
+
+
 class PlaceDiscovery(SQLModel, table=True):
     __tablename__ = "place_discoveries"
     __table_args__ = (

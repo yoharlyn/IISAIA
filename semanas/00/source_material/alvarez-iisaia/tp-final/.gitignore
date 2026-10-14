@@ -10,6 +10,7 @@ __pycache__/
 *.db
 *.db-shm
 *.db-wal
+data/uploads/
 
 # Entorno y sistema
 .env

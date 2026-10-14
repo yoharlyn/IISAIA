@@ -6,12 +6,13 @@ from sqlmodel import Session, func, select
 
 from backend.auth_routes import AuthContext, require_auth, require_csrf
 from backend.db import get_session
-from backend.models import Cafe, Visit, VisitStatus, utc_now
+from backend.models import Cafe, Visit, VisitPhoto, VisitStatus, utc_now
 from backend.schemas import CafeCreate, CafeRead, CafeSearch, CafeSearchRead, CafeUpdate, StatsRead
 from backend.locations import location_values, places_provider, verify_place_selection
 from backend.distance import haversine_km
 from backend.geo import location_is_fresh
 from backend.google_places import Coordinates
+from backend.uploads import purge_quarantined, quarantine_photos, restore_quarantined
 
 router = APIRouter(prefix="/api")
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -258,12 +259,26 @@ async def update_cafe(
 
 
 @router.delete("/cafes/{cafe_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_cafe(cafe_id: CafeId, session: SessionDep, auth: CsrfDep):
+def delete_cafe(cafe_id: CafeId, request: Request, session: SessionDep, auth: CsrfDep):
     cafe = find_cafe(session, cafe_id, auth.user.id)
-    for visit in session.exec(select(Visit).where(Visit.cafe_id == cafe.id)).all():
-        session.delete(visit)
-    session.delete(cafe)
-    session.commit()
+    visits = list(session.exec(select(Visit).where(Visit.cafe_id == cafe.id)).all())
+    visit_ids = [visit.id for visit in visits]
+    photos = list(
+        session.exec(select(VisitPhoto).where(VisitPhoto.visit_id.in_(visit_ids))).all()
+    ) if visit_ids else []
+    moved = quarantine_photos(request.app.state.upload_dir, photos)
+    try:
+        for photo in photos:
+            session.delete(photo)
+        for visit in visits:
+            session.delete(visit)
+        session.delete(cafe)
+        session.commit()
+    except Exception:
+        session.rollback()
+        restore_quarantined(moved)
+        raise HTTPException(status_code=500, detail="No se pudo eliminar la cafetería.") from None
+    purge_quarantined(moved)
     return Response(status_code=204)
 
 

@@ -1,19 +1,21 @@
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Path as ApiPath, Request, Response, status
 from sqlmodel import Session, select
 
 from backend.auth_routes import AuthContext, require_auth, require_csrf
 from backend.db import get_session
-from backend.models import Cafe, Visit, utc_now
-from backend.schemas import VisitCreate, VisitRead, VisitUpdate
+from backend.models import Cafe, Visit, VisitPhoto, utc_now
+from backend.schemas import VisitCreate, VisitPhotoRead, VisitRead, VisitUpdate
+from backend.uploads import purge_quarantined, quarantine_photos, restore_quarantined
 
 
 router = APIRouter(prefix="/api")
 SessionDep = Annotated[Session, Depends(get_session)]
 AuthDep = Annotated[AuthContext, Depends(require_auth)]
 CsrfDep = Annotated[AuthContext, Depends(require_csrf)]
-PositiveId = Annotated[int, Path(gt=0)]
+PositiveId = Annotated[int, ApiPath(gt=0)]
 
 
 def _find_cafe(session: Session, cafe_id: int, owner_id: int) -> Cafe:
@@ -34,14 +36,33 @@ def _find_visit(session: Session, visit_id: int, owner_id: int) -> Visit:
     return visit
 
 
+def _serialize_visit(session: Session, visit: Visit) -> VisitRead:
+    photos = session.exec(
+        select(VisitPhoto)
+        .where(
+            VisitPhoto.visit_id == visit.id,
+            VisitPhoto.owner_id == visit.owner_id,
+        )
+        .order_by(VisitPhoto.created_at, VisitPhoto.id)
+    ).all()
+    return VisitRead(
+        **visit.model_dump(),
+        photos=[
+            VisitPhotoRead(**photo.model_dump(), url=f"/api/photos/{photo.id}")
+            for photo in photos
+        ],
+    )
+
+
 @router.get("/cafes/{cafe_id}/visits", response_model=list[VisitRead])
 def list_visits(cafe_id: PositiveId, session: SessionDep, auth: AuthDep):
     _find_cafe(session, cafe_id, auth.user.id)
-    return session.exec(
+    visits = session.exec(
         select(Visit)
         .where(Visit.cafe_id == cafe_id, Visit.owner_id == auth.user.id)
         .order_by(Visit.visited_at.desc(), Visit.id.desc())
     ).all()
+    return [_serialize_visit(session, visit) for visit in visits]
 
 
 @router.post(
@@ -68,7 +89,7 @@ def create_visit(
     session.add(cafe)
     session.commit()
     session.refresh(visit)
-    return visit
+    return _serialize_visit(session, visit)
 
 
 @router.patch("/visits/{visit_id}", response_model=VisitRead)
@@ -84,15 +105,30 @@ def update_visit(
     session.add(visit)
     session.commit()
     session.refresh(visit)
-    return visit
+    return _serialize_visit(session, visit)
 
 
 @router.delete("/visits/{visit_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_visit(visit_id: PositiveId, session: SessionDep, auth: CsrfDep):
+def delete_visit(
+    visit_id: PositiveId,
+    request: Request,
+    session: SessionDep,
+    auth: CsrfDep,
+):
     visit = _find_visit(session, visit_id, auth.user.id)
     cafe = _find_cafe(session, visit.cafe_id, auth.user.id)
-    session.delete(visit)
-    cafe.updated_at = utc_now()
-    session.add(cafe)
-    session.commit()
+    photos = list(session.exec(select(VisitPhoto).where(VisitPhoto.visit_id == visit.id)).all())
+    moved = quarantine_photos(Path(request.app.state.upload_dir), photos)
+    try:
+        for photo in photos:
+            session.delete(photo)
+        session.delete(visit)
+        cafe.updated_at = utc_now()
+        session.add(cafe)
+        session.commit()
+    except Exception:
+        session.rollback()
+        restore_quarantined(moved)
+        raise HTTPException(status_code=500, detail="No se pudo eliminar la visita.") from None
+    purge_quarantined(moved)
     return Response(status_code=204)

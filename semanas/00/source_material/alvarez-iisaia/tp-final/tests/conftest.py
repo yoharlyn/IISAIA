@@ -53,11 +53,14 @@ def database_url(tmp_path):
 
 
 @pytest.fixture
-def app(database_url):
+def app(database_url, tmp_path):
     return create_app(
         database_url=database_url,
         seed_on_startup=False,
-        settings=Settings(session_secret="t" * 32).validated(),
+        settings=Settings(
+            session_secret="t" * 32,
+            upload_dir=str(tmp_path / "uploads"),
+        ).validated(),
         auth_provider=FakeAuthProvider(),
         places_provider=FakePlacesProvider(),
     )

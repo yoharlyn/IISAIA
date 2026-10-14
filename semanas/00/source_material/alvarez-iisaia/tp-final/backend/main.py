@@ -16,6 +16,7 @@ from backend.profile_routes import router as profile_router
 from backend.config_routes import router as config_router
 from backend.recommendation_routes import router as recommendation_router
 from backend.visit_routes import router as visit_router
+from backend.photo_routes import router as photo_router
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -56,12 +57,16 @@ def create_app(
     application.state.places_provider = places_provider or GooglePlacesProvider(
         configured.google_maps_server_key
     )
+    application.state.upload_dir = Path(configured.upload_dir) if configured.upload_dir else (
+        Path(__file__).resolve().parent.parent / "data" / "uploads"
+    )
     application.include_router(auth_router)
     application.include_router(session_router)
     application.include_router(profile_router)
     application.include_router(config_router)
     application.include_router(recommendation_router)
     application.include_router(visit_router)
+    application.include_router(photo_router)
     application.include_router(router)
     application.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     return application

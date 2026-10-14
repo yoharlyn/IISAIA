@@ -319,6 +319,7 @@ class VisitRead(BaseModel):
     date_is_estimated: bool
     created_at: datetime
     updated_at: datetime
+    photos: list["VisitPhotoRead"] = Field(default_factory=list)
 
     @field_validator("visited_at", "created_at", "updated_at", mode="after")
     @classmethod
@@ -326,3 +327,27 @@ class VisitRead(BaseModel):
         if value.tzinfo is None:
             return value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc)
+
+
+class VisitPhotoRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    visit_id: int
+    mime_type: str
+    size_bytes: int
+    width: int
+    height: int
+    caption: str
+    created_at: datetime
+    url: str
+
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def ensure_photo_utc(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
+VisitRead.model_rebuild()
