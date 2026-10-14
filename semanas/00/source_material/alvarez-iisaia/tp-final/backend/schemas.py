@@ -351,3 +351,53 @@ class VisitPhotoRead(BaseModel):
 
 
 VisitRead.model_rebuild()
+
+
+class DashboardSummary(BaseModel):
+    total_cafes: int
+    visited_cafes: int
+    pending_cafes: int
+    favorite_cafes: int
+    total_visits: int
+
+
+class MonthlyVisitPoint(BaseModel):
+    month: str
+    label: str
+    count: int
+    cumulative: int
+
+
+class RatingAverage(BaseModel):
+    key: str
+    label: str
+    average: float | None
+    count: int
+
+
+class NeighborhoodCount(BaseModel):
+    neighborhood: str
+    count: int
+
+
+class TopCafe(BaseModel):
+    cafe_id: int
+    name: str
+    visit_count: int
+    average_rating: float
+
+
+class NearbyPendingCafe(BaseModel):
+    cafe_id: int
+    name: str
+    neighborhood: str
+    distance_km: float
+
+
+class DashboardRead(BaseModel):
+    summary: DashboardSummary
+    monthly_visits: list[MonthlyVisitPoint]
+    rating_averages: list[RatingAverage]
+    neighborhoods: list[NeighborhoodCount]
+    top_cafes: list[TopCafe]
+    nearby_pending: list[NearbyPendingCafe]
