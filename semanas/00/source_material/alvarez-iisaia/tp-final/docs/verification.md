@@ -52,6 +52,9 @@ La verificación se ejecutó con el navegador integrado y locators de Playwright
 - Tras reiniciar FastAPI, Prisma Café Editado y los contadores 8/4/4/3 seguían
   presentes, demostrando persistencia.
 - El registro temporal se eliminó por API y la interfaz volvió al seed de siete.
+- Con FastAPI detenido, “Aplicar filtros” mostró el mensaje de conexión y el
+  botón “Reintentar”. Después de reiniciar, ese botón recuperó las siete tarjetas
+  y volvió a ocultarse.
 - Consola final: sin warnings ni errores.
 
 ## Resultado
@@ -59,4 +62,3 @@ La verificación se ejecutó con el navegador integrado y locators de Playwright
 No se encontraron defectos funcionales durante el recorrido. La confirmación
 destructiva final desde el botón queda documentada como comprobación manual
 opcional; el contrato y la persistencia de la eliminación están automatizados.
-

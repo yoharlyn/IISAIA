@@ -24,6 +24,8 @@ Abrir `http://127.0.0.1:8000` y recorrer los pasos en orden. La columna
 | Abrir eliminación y cancelar | El registro permanece y el foco vuelve a Eliminar | Correcto |
 | Escape en formulario | Cierra y devuelve foco a Agregar cafetería | Correcto |
 | Reinicio del servidor | El registro creado y editado continúa | Correcto |
+| Servidor detenido | Mensaje de conexión y botón “Reintentar” | Correcto |
+| Recuperación | Al reiniciar y reintentar vuelven las siete tarjetas | Correcto |
 | Consola | Sin errores ni warnings | Correcto |
 
 ## Comprobación manual destructiva restante
@@ -50,4 +52,3 @@ Antes de entregar, si se desea observar el último paso manual:
 4. Confirmar el mensaje: “No pudimos conectar con Coffee Atlas. Revisá que el
    servidor esté activo.”
 5. Reiniciar el servidor y usar “Reintentar”.
-
