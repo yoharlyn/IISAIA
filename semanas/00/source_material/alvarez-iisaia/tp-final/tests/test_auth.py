@@ -58,7 +58,7 @@ def complete_login(client, provider):
 
 def test_login_and_signup_create_signed_transactions_without_network(database_url):
     app, provider = auth_client(database_url)
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
         login = client.get("/auth/login", follow_redirects=False)
         signup = client.get("/auth/signup", follow_redirects=False)
 
@@ -88,7 +88,7 @@ def test_callback_rejects_missing_or_mismatched_state(database_url):
 
 def test_callback_creates_user_and_opaque_local_session(database_url):
     app, provider = auth_client(database_url)
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
         response = complete_login(client, provider)
         raw_cookie = client.cookies.get(SESSION_COOKIE_NAME)
 
@@ -106,7 +106,7 @@ def test_callback_creates_user_and_opaque_local_session(database_url):
 
 def test_callback_handles_provider_failure_without_creating_session(database_url):
     app, provider = auth_client(database_url, FakeAuthProvider(fail_exchange=True))
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
         response = complete_login(client, provider)
         assert response.status_code == 503
         assert client.cookies.get(SESSION_COOKIE_NAME) is None

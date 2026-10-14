@@ -13,6 +13,31 @@ def test_home_is_served_by_fastapi(client):
     assert 'aria-live="polite"' in response.text
 
 
+def test_only_the_configured_host_is_accepted(client):
+    accepted = client.get("/", headers={"Host": "127.0.0.1:8000"})
+    rejected = client.get("/", headers={"Host": "localhost:8000"})
+
+    assert accepted.status_code == 200
+    assert rejected.status_code == 400
+
+
+def test_security_headers_allow_only_the_required_google_maps_origins(client):
+    response = client.get("/")
+
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["x-frame-options"] == "DENY"
+    policy = response.headers["content-security-policy"]
+    assert "default-src 'self'" in policy
+    assert "frame-ancestors 'none'" in policy
+    assert "object-src 'none'" in policy
+    assert "https://*.googleapis.com" in policy
+    assert "https://*.gstatic.com" in policy
+    assert "https://*.google.com" in policy
+    assert "https://*.googleusercontent.com" in policy
+    assert "*;" not in policy
+
+
 def test_fastapi_documentation_is_registered_before_static_files(client):
     response = client.get("/docs")
 

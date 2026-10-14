@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from sqlmodel import SQLModel
 
 from backend.db import DEFAULT_DATABASE_URL, build_engine
@@ -20,6 +22,33 @@ from backend.photo_routes import router as photo_router
 from backend.dashboard_routes import router as dashboard_router
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+CONTENT_SECURITY_POLICY = "; ".join(
+    (
+        "default-src 'self'",
+        (
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
+            "https://*.googleapis.com https://*.gstatic.com https://*.google.com "
+            "https://*.ggpht.com https://*.googleusercontent.com blob:"
+        ),
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        (
+            "img-src 'self' data: http: https://*.googleapis.com https://*.gstatic.com "
+            "https://*.google.com https://*.googleusercontent.com"
+        ),
+        (
+            "connect-src 'self' https://*.googleapis.com https://*.google.com "
+            "https://*.gstatic.com data: blob:"
+        ),
+        "frame-src https://*.google.com",
+        "worker-src blob:",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+    )
+)
 
 
 def create_app(
@@ -61,6 +90,20 @@ def create_app(
     application.state.upload_dir = Path(configured.upload_dir) if configured.upload_dir else (
         Path(__file__).resolve().parent.parent / "data" / "uploads"
     )
+    allowed_host = urlparse(configured.app_base_url).hostname
+    if not allowed_host:
+        raise ValueError("APP_BASE_URL no contiene un host válido.")
+    application.add_middleware(TrustedHostMiddleware, allowed_hosts=[allowed_host])
+
+    @application.middleware("http")
+    async def add_security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["X-Frame-Options"] = "DENY"
+        return response
+
     application.include_router(auth_router)
     application.include_router(session_router)
     application.include_router(profile_router)
@@ -76,4 +119,5 @@ def create_app(
 
 def create_production_app() -> FastAPI:
     """Factory de ejecución real; es el único punto que carga el archivo .env."""
-    return create_app(settings=Settings.from_env(load_file=True))
+    settings = Settings.from_env(load_file=True).validated(require_auth0=True)
+    return create_app(settings=settings)

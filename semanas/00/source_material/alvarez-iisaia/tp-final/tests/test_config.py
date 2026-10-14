@@ -71,3 +71,21 @@ def test_create_app_uses_process_environment_without_loading_env_file(
 
     assert app.state.settings.session_secret == "e" * 32
     assert str(app.state.engine.url) == database_url
+
+
+def test_production_factory_fails_closed_without_auth0_configuration(monkeypatch):
+    for name in (
+        "SESSION_SECRET",
+        "AUTH0_DOMAIN",
+        "AUTH0_CLIENT_ID",
+        "AUTH0_CLIENT_SECRET",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr("backend.config.load_dotenv", lambda *_args, **_kwargs: False)
+
+    from backend.main import create_production_app
+
+    with pytest.raises(ConfigurationError, match="Faltan variables requeridas") as error:
+        create_production_app()
+
+    assert "AUTH0_CLIENT_SECRET" in str(error.value)
