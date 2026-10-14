@@ -1,4 +1,5 @@
 import secrets
+import logging
 from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -21,6 +22,7 @@ from backend.security import (
 
 auth_router = APIRouter(prefix="/auth")
 session_router = APIRouter(prefix="/api")
+logger = logging.getLogger("coffee_atlas.auth")
 
 
 @dataclass(slots=True)
@@ -120,7 +122,14 @@ async def callback(
         identity = await _auth_provider(request).exchange_code(
             code=code, nonce=transaction["nonce"]
         )
+    except AuthError as error:
+        logger.warning("auth0_callback_failed stage=%s", error.stage)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No se pudo completar la autenticación.",
+        ) from None
     except Exception:
+        logger.warning("auth0_callback_failed stage=unexpected")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="No se pudo completar la autenticación.",

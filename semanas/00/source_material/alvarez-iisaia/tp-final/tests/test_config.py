@@ -47,3 +47,15 @@ def test_public_summary_never_contains_secret_values():
         "auth0_configured": "true",
     }
     assert settings.auth0_client_secret not in repr(summary)
+
+
+def test_create_app_uses_environment_settings_by_default(monkeypatch, database_url):
+    monkeypatch.setenv("APP_BASE_URL", CANONICAL_BASE_URL)
+    monkeypatch.setenv("SESSION_SECRET", "e" * 32)
+    monkeypatch.setenv("AUTH0_CALLBACK_URL", f"{CANONICAL_BASE_URL}/auth/callback")
+    monkeypatch.setenv("AUTH0_LOGOUT_RETURN_URL", f"{CANONICAL_BASE_URL}/")
+    from backend.main import create_app
+
+    app = create_app(database_url=database_url, seed_on_startup=False)
+
+    assert app.state.settings.session_secret == "e" * 32

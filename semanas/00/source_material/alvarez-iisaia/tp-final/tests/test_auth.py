@@ -1,9 +1,11 @@
+import asyncio
 from urllib.parse import parse_qs, urlparse
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session, func, select
 
-from backend.auth import AuthIdentity
+import backend.auth as auth_module
+from backend.auth import Auth0Provider, AuthIdentity
 from backend.config import Settings
 from backend.main import create_app
 from backend.models import LocalSession, User
@@ -130,3 +132,77 @@ def test_logout_requires_csrf_and_invalidates_local_session(database_url):
         assert accepted.status_code == 303
         assert accepted.headers["location"] == "https://identity.test/logout"
         assert client.get("/api/session").status_code == 401
+
+
+def test_auth0_provider_exchanges_and_validates_id_token_without_network(monkeypatch):
+    calls = []
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.payload
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, url):
+            calls.append(("GET", url))
+            if url.endswith("openid-configuration"):
+                return FakeResponse(
+                    {
+                        "issuer": "https://identity.test/",
+                        "token_endpoint": "https://identity.test/oauth/token",
+                        "jwks_uri": "https://identity.test/.well-known/jwks.json",
+                    }
+                )
+            return FakeResponse({"keys": [{"kid": "test-key"}]})
+
+        async def post(self, url, *, data, headers):
+            calls.append(("POST", url, data, headers))
+            return FakeResponse({"id_token": "signed-id-token"})
+
+    class FakeClaims(dict):
+        def validate(self):
+            calls.append(("VALIDATE",))
+
+    def fake_decode(encoded, jwks, *, claims_options):
+        calls.append(("DECODE", encoded, jwks, claims_options))
+        assert claims_options["nonce"]["value"] == "expected-nonce"
+        return FakeClaims(
+            sub="auth0|owner", email="owner@example.test", name="Propietaria"
+        )
+
+    fake_client = FakeClient()
+    monkeypatch.setattr(
+        auth_module.httpx, "AsyncClient", lambda **_kwargs: fake_client
+    )
+    monkeypatch.setattr(auth_module.jwt, "decode", fake_decode)
+    settings = Settings(
+        session_secret="s" * 32,
+        auth0_domain="identity.test",
+        auth0_client_id="client-id",
+        auth0_client_secret="client-secret",
+    ).validated()
+
+    identity = asyncio.run(
+        Auth0Provider(settings).exchange_code(
+            code="authorization-code", nonce="expected-nonce"
+        )
+    )
+
+    assert identity == AuthIdentity(
+        sub="auth0|owner", email="owner@example.test", name="Propietaria"
+    )
+    assert [call[0] for call in calls] == ["GET", "POST", "GET", "DECODE", "VALIDATE"]
+    token_request = calls[1]
+    assert token_request[2]["grant_type"] == "authorization_code"
+    assert token_request[2]["redirect_uri"] == "http://127.0.0.1:8000/auth/callback"

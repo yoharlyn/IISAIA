@@ -2,13 +2,18 @@ from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import urlencode
 
-from authlib.integrations.httpx_client import AsyncOAuth2Client
+from authlib.jose import JoseError, jwt
+import httpx
 
 from backend.config import Settings
 
 
 class AuthError(RuntimeError):
     """Error seguro y esperable durante el flujo OIDC."""
+
+    def __init__(self, stage: str):
+        super().__init__("No se pudo completar la autenticación.")
+        self.stage = stage
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,30 +61,54 @@ class Auth0Provider:
     async def exchange_code(self, *, code: str, nonce: str) -> AuthIdentity:
         self._require_configuration()
         metadata_url = f"https://{self.settings.auth0_domain}/.well-known/openid-configuration"
-        async with AsyncOAuth2Client(
-            client_id=self.settings.auth0_client_id,
-            client_secret=self.settings.auth0_client_secret,
-            redirect_uri=self.settings.auth0_callback_url,
-            scope="openid profile email",
-        ) as client:
-            metadata_response = await client.get(metadata_url)
-            metadata_response.raise_for_status()
-            metadata = metadata_response.json()
-            token = await client.fetch_token(metadata["token_endpoint"], code=code)
-            claims = await client.parse_id_token(
-                token,
-                nonce=nonce,
-                claims_options={
-                    "iss": {"essential": True, "value": metadata["issuer"]},
-                    "aud": {
-                        "essential": True,
-                        "value": self.settings.auth0_client_id,
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+            try:
+                metadata_response = await client.get(metadata_url)
+                metadata_response.raise_for_status()
+                metadata = metadata_response.json()
+            except (httpx.HTTPError, KeyError, ValueError) as error:
+                raise AuthError("metadata") from error
+            try:
+                token_response = await client.post(
+                    metadata["token_endpoint"],
+                    data={
+                        "grant_type": "authorization_code",
+                        "client_id": self.settings.auth0_client_id,
+                        "client_secret": self.settings.auth0_client_secret,
+                        "code": code,
+                        "redirect_uri": self.settings.auth0_callback_url,
                     },
-                },
-            )
+                    headers={"Accept": "application/json"},
+                )
+                token_response.raise_for_status()
+                token = token_response.json()
+            except (httpx.HTTPError, KeyError, ValueError) as error:
+                raise AuthError("token") from error
+            try:
+                jwks_response = await client.get(metadata["jwks_uri"])
+                jwks_response.raise_for_status()
+                jwks = jwks_response.json()
+            except (httpx.HTTPError, KeyError, ValueError) as error:
+                raise AuthError("jwks") from error
+            try:
+                claims = jwt.decode(
+                    token["id_token"],
+                    jwks,
+                    claims_options={
+                        "iss": {"essential": True, "value": metadata["issuer"]},
+                        "aud": {
+                            "essential": True,
+                            "value": self.settings.auth0_client_id,
+                        },
+                        "nonce": {"essential": True, "value": nonce},
+                    },
+                )
+                claims.validate()
+            except (JoseError, KeyError) as error:
+                raise AuthError("claims") from error
         sub = claims.get("sub")
         if not sub:
-            raise AuthError("Auth0 no devolvió una identidad válida.")
+            raise AuthError("identity")
         return AuthIdentity(sub=sub, email=claims.get("email"), name=claims.get("name"))
 
     def logout_url(self) -> str:

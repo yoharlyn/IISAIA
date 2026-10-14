@@ -22,9 +22,7 @@ def create_app(
     settings: Settings | None = None,
     auth_provider: AuthProvider | None = None,
 ) -> FastAPI:
-    configured = settings or Settings(
-        session_secret="development-only-secret-change-me"
-    ).validated()
+    configured = settings or Settings.from_env()
     engine = build_engine(database_url or DEFAULT_DATABASE_URL)
 
     @asynccontextmanager
