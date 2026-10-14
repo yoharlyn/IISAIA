@@ -64,6 +64,15 @@ textarea { resize: vertical; }
 .atlas-map { min-height: 420px; overflow: hidden; border: 1px solid var(--cream-200); border-radius: var(--radius-lg); background: var(--olive-100); }
 .atlas-map[data-map-state="unavailable"] { display: grid; place-items: center; min-height: 180px; }
 .map-note { color: var(--espresso-500); font-size: .85rem; }
+.profile-section, .recommendations-section { margin-bottom: 52px; padding: 28px; border: 1px solid var(--cream-200); border-radius: var(--radius-lg); background: var(--white); }
+.profile-form, .recommendations-form { display: grid; grid-template-columns: 2fr 1fr auto; gap: 18px; align-items: end; }
+.field-label { display: block; margin-bottom: 7px; font-size: .86rem; font-weight: 750; }
+.autocomplete-unavailable { margin: 0; border: 1px dashed var(--cream-200); border-radius: 10px; padding: 12px; color: var(--espresso-500); }
+.recommendations-form fieldset { display: flex; gap: 14px; border: 0; padding: 0; }
+.recommendations-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+.recommendation-card { border: 1px solid var(--cream-200); border-radius: var(--radius-md); padding: 20px; }
+.recommendation-card h3 { font-family: Georgia, serif; }
+.recommendation-meta, .recommendation-explanation, .google-attribution { color: var(--espresso-500); font-size: .85rem; }
 .result-count, .status-message { color: var(--espresso-500); }
 .result-count { margin: 0; }
 .status-message { margin: 20px 0; }
@@ -117,6 +126,7 @@ dialog::backdrop { background: rgb(25 16 12 / 68%); }
   .field-wide { grid-column: 1 / -1; }
   .filter-actions { grid-column: auto; }
   .cafe-grid { grid-template-columns: 1fr 1fr; }
+  .recommendations-grid { grid-template-columns: 1fr 1fr; }
   .ratings-form-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 580px) {
@@ -129,7 +139,7 @@ dialog::backdrop { background: rgb(25 16 12 / 68%); }
   .header-inner .button { padding-inline: 13px; }
   main { padding-block: 30px 50px; }
   .hero { padding-block: 20px 38px; }
-  .stats-grid, .filters, .cafe-grid, .form-grid, .ratings-form-grid { grid-template-columns: 1fr; }
+  .stats-grid, .filters, .cafe-grid, .form-grid, .ratings-form-grid, .profile-form, .recommendations-form, .recommendations-grid { grid-template-columns: 1fr; }
   .stats-grid { gap: 10px; }
   .stat-card { display: flex; align-items: baseline; justify-content: space-between; padding: 16px 20px; }
   .stat-card span { font-size: 2rem; }

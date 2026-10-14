@@ -24,6 +24,8 @@ def test_frontend_assets_are_served(client):
     ui_module = client.get("/js/ui.js")
     auth_module = client.get("/js/auth.js")
     map_module = client.get("/js/map.js")
+    places_module = client.get("/js/places.js")
+    recommendations_module = client.get("/js/recommendations.js")
 
     assert stylesheet.status_code == 200
     assert stylesheet.headers["content-type"].startswith("text/css")
@@ -42,6 +44,15 @@ def test_frontend_assets_are_served(client):
     assert "localStorage" not in map_module.text
     assert "sessionStorage" not in map_module.text
     assert 'id="atlas-map"' in client.get("/").text
+    assert places_module.status_code == 200
+    assert "PlaceAutocompleteElement" in places_module.text
+    assert "gmp-select" in places_module.text
+    assert "innerHTML" not in places_module.text
+    assert recommendations_module.status_code == 200
+    assert "textContent" in recommendations_module.text
+    assert 'id="home-autocomplete"' in client.get("/").text
+    assert 'id="cafe-autocomplete"' in client.get("/").text
+    assert "provienen de Google Maps" in client.get("/").text
 
 
 def test_public_config_never_exposes_server_key(client, app):

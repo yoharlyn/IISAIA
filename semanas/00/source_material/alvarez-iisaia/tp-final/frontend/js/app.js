@@ -1,7 +1,9 @@
-import { createCafe, deleteCafe, getConfig, getStats, listCafes, updateCafe } from "./api.js";
+import { createCafe, deleteCafe, getConfig, getProfile, getStats, listCafes, searchRecommendations, updateCafe, updateProfile } from "./api.js";
 import { populateNeighborhoods, renderCafes, renderStats, setListState } from "./ui.js";
 import { initializeSession } from "./auth.js";
-import { loadMapsScript, renderAtlasMap, requestCurrentPosition } from "./map.js";
+import { getCurrentPositionForView, loadMapsScript, renderAtlasMap, requestCurrentPosition } from "./map.js";
+import { mountPlaceAutocomplete, showAutocompleteUnavailable } from "./places.js";
+import { renderRecommendations } from "./recommendations.js";
 
 const filterForm = document.querySelector("#filter-form");
 const cafeDialog = document.querySelector("#cafe-dialog");
@@ -19,6 +21,8 @@ let returnFocus = null;
 let messageTimer = null;
 let mapConfig = { google_maps_enabled: false };
 let allCafesForMap = [];
+let cafeSelection = null;
+let homeSelection = null;
 
 function currentFilters() {
   const data = new FormData(filterForm);
@@ -61,11 +65,79 @@ async function initializeMap() {
     mapConfig = await getConfig();
     if (!mapConfig.google_maps_enabled) {
       status.textContent = "Mapa no disponible: Google Maps todavía no está configurado.";
+      initializeAutocompletes();
       return;
     }
     await loadMapsScript(mapConfig);
+    initializeAutocompletes();
     renderAtlasMap(document.querySelector("#atlas-map"), allCafesForMap, mapConfig);
     status.textContent = "Mapa listo. Las ubicaciones vencidas no se muestran.";
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
+function initializeAutocompletes() {
+  if (!mapConfig.google_maps_enabled) {
+    showAutocompleteUnavailable(document.querySelector("#cafe-autocomplete"), "No podés agregar ubicaciones nuevas hasta configurar Google Maps.");
+    showAutocompleteUnavailable(document.querySelector("#home-autocomplete"), "El domicilio no puede verificarse sin Google Maps.");
+    return;
+  }
+  mountPlaceAutocomplete(document.querySelector("#cafe-autocomplete"), (selection) => {
+    cafeSelection = selection;
+    setFormValue("place_id", selection.place_id);
+    setFormValue("selected_address", selection.selected_address);
+    document.querySelector("#cafe-address-selection").textContent = `Seleccionada: ${selection.selected_address}`;
+  });
+  mountPlaceAutocomplete(document.querySelector("#home-autocomplete"), (selection) => {
+    homeSelection = selection;
+    document.querySelector("#home-address-selection").textContent = `Seleccionada: ${selection.selected_address}`;
+  });
+}
+
+async function loadProfile() {
+  const profile = await getProfile();
+  document.querySelector("#profile-display-name").value = profile.display_name;
+  document.querySelector("#home-address-selection").textContent = profile.home_selected_address
+    ? `Domicilio guardado: ${profile.home_selected_address}`
+    : "No configuraste un domicilio.";
+}
+
+async function saveProfile(event) {
+  event.preventDefault();
+  const button = document.querySelector("#save-profile");
+  const status = document.querySelector("#profile-status");
+  button.disabled = true;
+  try {
+    const payload = { display_name: document.querySelector("#profile-display-name").value };
+    if (homeSelection) payload.home = homeSelection;
+    await updateProfile(payload);
+    homeSelection = null;
+    status.textContent = "Perfil guardado.";
+    await loadProfile();
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function findRecommendations(event) {
+  event.preventDefault();
+  const status = document.querySelector("#recommendations-status");
+  const data = new FormData(event.currentTarget);
+  const type = data.get("origin");
+  let origin = { type };
+  status.textContent = "Buscando recomendaciones…";
+  try {
+    if (type === "current") {
+      let position = getCurrentPositionForView();
+      if (!position) position = await requestCurrentPosition();
+      origin = { type, ...position };
+    }
+    const items = await searchRecommendations({ origin, radius_km: Number(data.get("radius_km")) });
+    renderRecommendations(document.querySelector("#recommendations-list"), items);
+    status.textContent = `${items.length} recomendaciones. Datos actuales: Google Maps.`;
   } catch (error) {
     status.textContent = error.message;
   }
@@ -114,18 +186,23 @@ function setFormValue(name, value) {
   cafeForm.elements[name].value = value ?? "";
 }
 
-function openCafeForm(cafe = null, trigger = document.activeElement) {
+function openCafeForm(cafe = null, trigger = document.activeElement, suggestedName = "") {
   returnFocus = trigger;
   cafeForm.reset();
   formError.hidden = true;
   formError.textContent = "";
   document.querySelector("#cafe-dialog-title").textContent = cafe ? "Editar cafetería" : "Agregar cafetería";
   setFormValue("id", cafe?.id);
-  setFormValue("name", cafe?.name);
-  setFormValue("neighborhood", cafe?.neighborhood);
+  setFormValue("name", cafe?.name || suggestedName);
   setFormValue("description", cafe?.description);
   setFormValue("image_url", cafe?.image_url);
   setFormValue("visit_status", cafe?.visit_status || "PENDING");
+  cafeSelection = null;
+  setFormValue("place_id", "");
+  setFormValue("selected_address", "");
+  document.querySelector("#cafe-address-selection").textContent = cafe?.selected_address
+    ? `Dirección guardada: ${cafe.selected_address}. Elegí otra para cambiarla.`
+    : "Seleccioná una dirección de la lista para continuar.";
   cafeForm.elements.is_favorite.checked = cafe?.is_favorite || false;
   ["coffee_rating", "food_rating", "ambience_rating", "service_rating"].forEach((field) => setFormValue(field, cafe?.[field]));
   cafeDialog.showModal();
@@ -136,12 +213,11 @@ function closeDialog(dialog) {
   dialog.close();
 }
 
-function formPayload() {
+function formPayload(isEditing) {
   const data = new FormData(cafeForm);
   const rating = (name) => data.get(name) === "" ? null : Number(data.get(name));
-  return {
+  const payload = {
     name: data.get("name"),
-    neighborhood: data.get("neighborhood"),
     description: data.get("description"),
     image_url: data.get("image_url").trim() || null,
     visit_status: data.get("visit_status"),
@@ -151,6 +227,11 @@ function formPayload() {
     ambience_rating: rating("ambience_rating"),
     service_rating: rating("service_rating"),
   };
+  if (cafeSelection) Object.assign(payload, cafeSelection);
+  if (!isEditing && !cafeSelection) {
+    throw new Error("Seleccioná una dirección con el autocompletado.");
+  }
+  return payload;
 }
 
 async function saveCafe(event) {
@@ -164,7 +245,7 @@ async function saveCafe(event) {
   formError.hidden = true;
   try {
     const id = cafeForm.elements.id.value;
-    await (id ? updateCafe(id, formPayload()) : createCafe(formPayload()));
+    await (id ? updateCafe(id, formPayload(true)) : createCafe(formPayload(false)));
     closeDialog(cafeDialog);
     showMessage(id ? "Cafetería actualizada." : "Cafetería agregada al atlas.");
     await loadData();
@@ -244,10 +325,17 @@ document.querySelector("#close-cafe-dialog").addEventListener("click", () => clo
 document.querySelector("#cancel-cafe").addEventListener("click", () => closeDialog(cafeDialog));
 document.querySelector("#cancel-delete").addEventListener("click", () => closeDialog(deleteDialog));
 document.querySelector("#locate-user").addEventListener("click", locateUser);
+document.querySelector("#profile-form").addEventListener("submit", saveProfile);
+document.querySelector("#recommendations-form").addEventListener("submit", findRecommendations);
+document.addEventListener("coffee-atlas:prepare-recommendation", (event) => {
+  openCafeForm(null, document.activeElement, event.detail.display_name || "");
+  document.querySelector("#cafe-address-selection").textContent = "Confirmá la dirección nuevamente con el autocompletado antes de guardar.";
+});
 [cafeDialog, deleteDialog].forEach((dialog) => dialog.addEventListener("close", () => returnFocus?.focus()));
 
 fillRatings();
 initializeSession(async () => {
   await loadData();
+  await loadProfile();
   await initializeMap();
 });

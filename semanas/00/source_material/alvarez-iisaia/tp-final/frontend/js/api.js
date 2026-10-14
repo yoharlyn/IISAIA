@@ -70,3 +70,5 @@ export const createCafe = (payload) => request(`${API_ROOT}/cafes`, { method: "P
 export const updateCafe = (id, payload) => request(`${API_ROOT}/cafes/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
 export const deleteCafe = (id) => request(`${API_ROOT}/cafes/${id}`, { method: "DELETE" });
 export const searchCafes = (payload) => request(`${API_ROOT}/cafes/search`, { method: "POST", body: JSON.stringify(payload) });
+export const searchRecommendations = (payload) => request(`${API_ROOT}/recommendations/search`, { method: "POST", body: JSON.stringify(payload) });
+export const prepareRecommendation = (placeId) => request(`${API_ROOT}/recommendations/${encodeURIComponent(placeId)}/prepare-save`, { method: "POST" });

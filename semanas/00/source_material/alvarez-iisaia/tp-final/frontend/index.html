@@ -89,6 +89,28 @@
         <p class="map-note">La ubicación actual permanece sólo en memoria. Distancias en línea recta, no tiempos de viaje.</p>
       </section>
 
+      <section class="profile-section" aria-labelledby="profile-title">
+        <div class="section-heading"><div><p class="eyebrow">Perfil</p><h2 id="profile-title">Tu punto de partida</h2></div></div>
+        <form id="profile-form" class="profile-form">
+          <div class="field"><label for="profile-display-name">Nombre visible</label><input id="profile-display-name" required maxlength="100"></div>
+          <div class="field field-full"><span id="home-autocomplete-label" class="field-label">Domicilio en CABA</span><div id="home-autocomplete" aria-labelledby="home-autocomplete-label"></div><small id="home-address-selection">No configuraste un domicilio.</small></div>
+          <button id="save-profile" class="button button-primary" type="submit">Guardar perfil</button>
+          <p id="profile-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="recommendations-section" aria-labelledby="recommendations-title">
+        <div class="section-heading"><div><p class="eyebrow">Descubrir</p><h2 id="recommendations-title">Recomendaciones cercanas</h2></div></div>
+        <form id="recommendations-form" class="recommendations-form">
+          <fieldset><legend>Origen</legend><label><input type="radio" name="origin" value="current" checked> Ubicación actual</label><label><input type="radio" name="origin" value="home"> Domicilio</label></fieldset>
+          <div class="field"><label for="recommendation-radius">Radio</label><select id="recommendation-radius" name="radius_km"><option value="1">1 km</option><option value="3" selected>3 km</option><option value="5">5 km</option></select></div>
+          <button class="button button-primary" type="submit">Buscar recomendaciones</button>
+        </form>
+        <p id="recommendations-status" role="status" aria-live="polite">La búsqueda se ejecuta sólo cuando la solicitás.</p>
+        <div id="recommendations-list" class="recommendations-grid"></div>
+        <p class="google-attribution">Las recomendaciones y sus datos actuales provienen de Google Maps.</p>
+      </section>
+
       <section class="atlas-section" aria-labelledby="atlas-title">
         <div class="section-heading">
           <div><p class="eyebrow">Colección</p><h2 id="atlas-title">Mis cafeterías</h2></div>
@@ -118,7 +140,7 @@
         <input id="cafe-id" name="id" type="hidden">
         <div class="form-grid">
           <div class="field"><label for="cafe-name">Nombre</label><input id="cafe-name" name="name" required maxlength="100" autocomplete="off"></div>
-          <div class="field"><label for="cafe-neighborhood">Barrio</label><input id="cafe-neighborhood" name="neighborhood" required maxlength="80" autocomplete="off"></div>
+          <div class="field field-full"><span id="cafe-autocomplete-label" class="field-label">Dirección en CABA</span><div id="cafe-autocomplete" aria-labelledby="cafe-autocomplete-label"></div><small id="cafe-address-selection">Seleccioná una dirección de la lista para continuar.</small><input name="place_id" type="hidden"><input name="selected_address" type="hidden"></div>
           <div class="field field-full"><label for="cafe-description">Descripción</label><textarea id="cafe-description" name="description" required maxlength="600" rows="4"></textarea><small>Hasta 600 caracteres.</small></div>
           <div class="field field-full"><label for="cafe-image">URL de fotografía <span>(opcional)</span></label><input id="cafe-image" name="image_url" type="url" maxlength="2048" inputmode="url" placeholder="https://ejemplo.com/cafe.jpg"></div>
           <div class="field"><label for="cafe-status">Estado</label><select id="cafe-status" name="visit_status"><option value="PENDING">Pendiente</option><option value="VISITED">Visitada</option></select></div>
