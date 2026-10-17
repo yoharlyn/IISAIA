@@ -344,9 +344,10 @@ function closeDialog(dialog) {
 
 function formPayload(isEditing) {
   const data = new FormData(cafeForm);
+  const description = data.get("description").trim();
   const payload = {
     name: data.get("name"),
-    description: data.get("description"),
+    description: description || null,
     image_url: data.get("image_url").trim() || null,
     is_favorite: data.get("is_favorite") === "on",
   };

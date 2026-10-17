@@ -134,6 +134,20 @@ def test_prepare_and_save_use_the_canonical_details_address(client, app):
         assert cafe.selected_address == "Av. Corrientes 1000, CABA"
 
 
+def test_legacy_recommendation_save_accepts_missing_description(client):
+    response = client.post(
+        "/api/recommendations/recommendation-without-description/save",
+        json={
+            "name": "Sin descripción",
+            "selected_address": "Dirección confirmada",
+        },
+    )
+
+    assert response.status_code == 201
+    cafe = client.get("/api/cafes", params={"q": "Sin descripción"}).json()[0]
+    assert cafe["description"] is None
+
+
 def test_recommendation_radius_is_capped_at_five_km(client):
     response = client.post(
         "/api/recommendations/search",

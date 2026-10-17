@@ -150,7 +150,8 @@ footer nav { display: flex; flex-wrap: wrap; gap: 1rem; }
 .badge-pending { color: var(--terracotta-700); background: var(--terracotta-100); }
 .neighborhood { color: var(--espresso-500); font-size: .82rem; font-weight: 750; }
 .card-body h3 { margin: 0 0 8px; font-family: Georgia, serif; font-size: 1.55rem; line-height: 1.15; }
-.description { min-height: 4.5em; margin: 0 0 18px; color: var(--espresso-500); }
+.description { margin: 0 0 18px; color: var(--espresso-500); }
+.description-empty { font-style: italic; }
 .ratings { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0 0 20px; padding-top: 16px; border-top: 1px solid var(--cream-200); }
 .rating-row { display: flex; justify-content: space-between; gap: 8px; font-size: .82rem; }
 .rating-row dt { color: var(--espresso-500); }
@@ -233,7 +234,6 @@ dialog::backdrop { background: rgb(25 16 12 / 68%); }
   .section-heading { align-items: start; flex-direction: column; gap: 8px; }
   .atlas-map { min-height: 320px; }
   .map-place-selection dl div, .prepared-location dl div { grid-template-columns: 1fr; gap: 2px; }
-  .description { min-height: auto; }
   .dialog-form { padding: 22px 18px; }
   .visit-toolbar, .visit-heading { align-items: stretch; flex-direction: column; }
   .visit-toolbar .status-message { text-align: left; }

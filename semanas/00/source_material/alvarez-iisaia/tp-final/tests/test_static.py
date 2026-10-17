@@ -115,6 +115,10 @@ def test_frontend_assets_are_served(client):
     assert 'id="home-autocomplete"' in client.get("/").text
     assert 'id="cafe-autocomplete"' in client.get("/").text
     assert 'id="cafe-prepared-location"' in client.get("/").text
+    assert 'id="cafe-description" name="description" maxlength="600"' in client.get("/").text
+    assert 'name="description" required' not in client.get("/").text
+    assert "Descripción <span>(opcional)</span>" in client.get("/").text
+    assert 'cafe.description || "Sin descripción."' in ui_module.text
     assert "prepareCafe" in api_module.text
     assert "Agregar a mis cafeterías" in recommendations_module.text
     assert "provienen de Google Maps" in client.get("/").text

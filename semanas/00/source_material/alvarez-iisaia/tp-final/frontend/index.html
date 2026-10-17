@@ -168,7 +168,7 @@
             <button id="change-cafe-location" class="button button-quiet" type="button">Elegir otra dirección</button>
           </section>
           <input name="place_id" type="hidden"><input name="selected_address" type="hidden">
-          <div class="field field-full"><label for="cafe-description">Descripción</label><textarea id="cafe-description" name="description" required maxlength="600" rows="4"></textarea><small>Hasta 600 caracteres.</small></div>
+          <div class="field field-full"><label for="cafe-description">Descripción <span>(opcional)</span></label><textarea id="cafe-description" name="description" maxlength="600" rows="4" aria-describedby="cafe-description-help"></textarea><small id="cafe-description-help">Podés dejarla vacía. Hasta 600 caracteres.</small></div>
           <div class="field field-full"><label for="cafe-image">URL de fotografía <span>(opcional)</span></label><input id="cafe-image" name="image_url" type="url" maxlength="2048" inputmode="url" placeholder="https://ejemplo.com/cafe.jpg"></div>
           <label class="check-field form-favorite" for="cafe-favorite"><input id="cafe-favorite" name="is_favorite" type="checkbox">Marcar como favorita</label>
         </div>

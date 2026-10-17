@@ -3,6 +3,7 @@ from typing import Annotated, Literal, Self
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     HttpUrl,
@@ -23,6 +24,20 @@ Description = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1, max_length=600),
 ]
+
+
+def normalize_optional_description(value):
+    if value is None:
+        return None
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value
+
+
+OptionalDescription = Annotated[
+    Description | None,
+    BeforeValidator(normalize_optional_description),
+]
 PlaceId = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
 SelectedAddress = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
@@ -38,7 +53,7 @@ class StrictSchema(BaseModel):
 class CafeCreate(StrictSchema):
     name: Name
     neighborhood: Neighborhood | None = None
-    description: Description
+    description: OptionalDescription = None
     place_id: PlaceId
     selected_address: SelectedAddress
     image_url: str | None = None
@@ -63,7 +78,7 @@ class CafeCreate(StrictSchema):
 class CafeUpdate(StrictSchema):
     name: Name | None = None
     neighborhood: Neighborhood | None = None
-    description: Description | None = None
+    description: OptionalDescription = None
     place_id: PlaceId | None = None
     selected_address: SelectedAddress | None = None
     image_url: str | None = None
@@ -86,7 +101,6 @@ class CafeUpdate(StrictSchema):
         required_fields = {
             "name",
             "neighborhood",
-            "description",
             "visit_status",
             "is_favorite",
         }
@@ -111,7 +125,7 @@ class CafeRead(BaseModel):
     longitude: float | None
     location_status: LocationStatus
     location_expires_at: datetime | None
-    description: str
+    description: str | None
     image_url: str | None
     visit_status: VisitStatus
     is_favorite: bool
@@ -209,7 +223,7 @@ class RecommendationRead(BaseModel):
 class RecommendationSave(StrictSchema):
     name: Name
     selected_address: SelectedAddress
-    description: Description
+    description: OptionalDescription = None
     is_favorite: bool = False
 
 

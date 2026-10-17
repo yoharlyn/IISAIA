@@ -72,7 +72,7 @@ def create_app(
             database_kind = (
                 inspect_database(database_path).kind if database_path.exists() else "empty"
             )
-            if database_kind in {"v1", "v2_geo_pending"}:
+            if database_kind in {"v1", "v2_geo_pending", "v3_pending"}:
                 raise RuntimeError(
                     "La base requiere una migración manual; ejecutá backend.migrations status."
                 )

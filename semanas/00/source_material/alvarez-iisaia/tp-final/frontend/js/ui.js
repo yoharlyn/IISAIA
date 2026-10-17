@@ -85,7 +85,11 @@ function cafeCard(cafe) {
     element("span", "neighborhood", cafe.neighborhood),
   );
   const title = element("h3", "", cafe.name);
-  const description = element("p", "description", cafe.description);
+  const description = element(
+    "p",
+    cafe.description ? "description" : "description description-empty",
+    cafe.description || "Sin descripción.",
+  );
   const actions = element("div", "card-actions");
   actions.append(
     actionButton("Visitas", "visits", cafe.id, "button button-primary"),

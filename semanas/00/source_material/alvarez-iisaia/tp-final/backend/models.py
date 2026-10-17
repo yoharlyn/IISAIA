@@ -79,7 +79,7 @@ class Cafe(SQLModel, table=True):
             name="ck_cafes_neighborhood",
         ),
         CheckConstraint(
-            "length(trim(description)) BETWEEN 1 AND 600",
+            "description IS NULL OR length(trim(description)) BETWEEN 1 AND 600",
             name="ck_cafes_description",
         ),
         CheckConstraint(
@@ -93,7 +93,7 @@ class Cafe(SQLModel, table=True):
     owner_id: int = Field(foreign_key="users.id", index=True)
     name: str = Field(max_length=100, index=True)
     neighborhood: str = Field(max_length=80, index=True)
-    description: str = Field(max_length=600)
+    description: str | None = Field(default=None, max_length=600)
     image_url: str | None = Field(default=None, max_length=2048)
     is_favorite: bool = Field(default=False, index=True)
     place_id: str | None = Field(default=None, max_length=255)
