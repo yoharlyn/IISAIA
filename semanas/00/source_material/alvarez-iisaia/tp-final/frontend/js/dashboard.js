@@ -1,12 +1,37 @@
 import { getDashboard } from "./api.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+const CHART_WIDTH = 780;
+const CHART_HEIGHT = 340;
+const PLOT = { top: 34, right: 18, bottom: 76, left: 54 };
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
+}
+
+function svgElement(tag, className, text) {
+  const node = document.createElementNS(SVG_NS, tag);
+  if (className) node.setAttribute("class", className);
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function headerCell(text, scope) {
+  const cell = element("th", "", text);
+  cell.setAttribute("scope", scope);
+  return cell;
+}
+
+function tableRegion(table, label) {
+  const region = element("div", "table-scroll");
+  region.tabIndex = 0;
+  region.setAttribute("role", "region");
+  region.setAttribute("aria-label", label);
+  region.append(table);
+  return region;
 }
 
 function summaryCards(summary) {
@@ -23,46 +48,154 @@ function summaryCards(summary) {
   });
 }
 
+function integerScale(points) {
+  const maximum = Math.max(0, ...points.map((point) => point.count));
+  const step = maximum <= 4 ? 1 : Math.ceil(maximum / 4);
+  const axisMaximum = Math.max(1, Math.ceil(maximum / step) * step);
+  const ticks = [];
+  for (let value = 0; value <= axisMaximum; value += step) ticks.push(value);
+  if (ticks.at(-1) !== axisMaximum) ticks.push(axisMaximum);
+  return { axisMaximum, ticks };
+}
+
+function shortMonth(point) {
+  const [name, year] = point.label.split(" ");
+  return `${name.slice(0, 3)} ${year.slice(-2)}`;
+}
+
+function chartSummary(points) {
+  const total = points.reduce((sum, point) => sum + point.count, 0);
+  if (total === 0) {
+    return `No registraste visitas entre ${points[0].label} y ${points.at(-1).label}.`;
+  }
+  const maximum = Math.max(...points.map((point) => point.count));
+  const peaks = points.filter((point) => point.count === maximum).map((point) => point.label);
+  const activeMonths = points.filter((point) => point.count > 0).length;
+  const visitWord = total === 1 ? "visita" : "visitas";
+  const monthWord = activeMonths === 1 ? "mes" : "meses";
+  return `${total} ${visitWord} en ${activeMonths} ${monthWord}. Máximo mensual: ${maximum} en ${peaks.join(" y ")}.`;
+}
+
+function chartSvg(points) {
+  const svg = svgElement("svg", "visits-chart");
+  svg.setAttribute("viewBox", `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-labelledby", "visits-chart-svg-title visits-chart-svg-description");
+
+  const title = svgElement("title", "", "Visitas mensuales de los últimos doce meses");
+  title.id = "visits-chart-svg-title";
+  const description = svgElement(
+    "desc",
+    "",
+    "Gráfico de barras con escala entera desde cero. Cada barra incluye el mes y su cantidad; la tabla siguiente ofrece los mismos datos.",
+  );
+  description.id = "visits-chart-svg-description";
+  svg.append(title, description);
+
+  const plotWidth = CHART_WIDTH - PLOT.left - PLOT.right;
+  const plotHeight = CHART_HEIGHT - PLOT.top - PLOT.bottom;
+  const plotBottom = PLOT.top + plotHeight;
+  const slotWidth = plotWidth / points.length;
+  const barWidth = Math.min(30, slotWidth * 0.56);
+  const { axisMaximum, ticks } = integerScale(points);
+
+  ticks.forEach((tick) => {
+    const y = plotBottom - (tick / axisMaximum) * plotHeight;
+    const line = svgElement("line", "chart-grid-line");
+    line.setAttribute("x1", String(PLOT.left));
+    line.setAttribute("x2", String(CHART_WIDTH - PLOT.right));
+    line.setAttribute("y1", String(y));
+    line.setAttribute("y2", String(y));
+    line.setAttribute("aria-hidden", "true");
+    const label = svgElement("text", "chart-axis-label", String(tick));
+    label.setAttribute("x", String(PLOT.left - 10));
+    label.setAttribute("y", String(y + 4));
+    label.setAttribute("text-anchor", "end");
+    svg.append(line, label);
+  });
+
+  const axis = svgElement("line", "chart-axis-line");
+  axis.setAttribute("x1", String(PLOT.left));
+  axis.setAttribute("x2", String(CHART_WIDTH - PLOT.right));
+  axis.setAttribute("y1", String(plotBottom));
+  axis.setAttribute("y2", String(plotBottom));
+  axis.setAttribute("aria-hidden", "true");
+  svg.append(axis);
+
+  points.forEach((point, index) => {
+    const x = PLOT.left + index * slotWidth + (slotWidth - barWidth) / 2;
+    const height = (point.count / axisMaximum) * plotHeight;
+    const y = plotBottom - height;
+    const bar = svgElement("rect", "chart-bar");
+    bar.setAttribute("data-month", point.month);
+    bar.setAttribute("data-count", String(point.count));
+    bar.setAttribute("x", String(x));
+    bar.setAttribute("y", String(y));
+    bar.setAttribute("width", String(barWidth));
+    bar.setAttribute("height", String(height));
+    bar.setAttribute("rx", "4");
+    const barTitle = svgElement("title", "", `${point.label}: ${point.count} visitas`);
+    bar.append(barTitle);
+
+    const value = svgElement("text", "chart-value-label", String(point.count));
+    value.setAttribute("x", String(x + barWidth / 2));
+    value.setAttribute("y", String(Math.max(PLOT.top + 12, y - 8)));
+    value.setAttribute("text-anchor", "middle");
+
+    const month = svgElement("text", "chart-month-label", shortMonth(point));
+    month.setAttribute("x", String(x + barWidth / 2));
+    month.setAttribute("y", String(plotBottom + 25));
+    month.setAttribute("text-anchor", "middle");
+    svg.append(bar, value, month);
+  });
+
+  const axisTitle = svgElement("text", "chart-axis-title", "Visitas");
+  axisTitle.setAttribute("x", String(PLOT.left));
+  axisTitle.setAttribute("y", "18");
+  svg.append(axisTitle);
+  return svg;
+}
+
 function monthlyChart(points) {
   const figure = element("figure", "dashboard-figure");
   const heading = element("h3", "", "Visitas durante los últimos 12 meses");
-  const description = element("p", "chart-description", "Las barras muestran visitas por mes. La tabla presenta los mismos valores y la evolución acumulada.");
-  const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("viewBox", "0 0 720 260");
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "Gráfico de visitas mensuales; los valores completos están en la tabla siguiente.");
-  const maximum = Math.max(1, ...points.map((point) => point.count));
-  points.forEach((point, index) => {
-    const height = (point.count / maximum) * 190;
-    const bar = document.createElementNS(SVG_NS, "rect");
-    bar.setAttribute("x", String(22 + index * 58));
-    bar.setAttribute("y", String(215 - height));
-    bar.setAttribute("width", "36");
-    bar.setAttribute("height", String(height));
-    bar.setAttribute("rx", "5");
-    const title = document.createElementNS(SVG_NS, "title");
-    title.textContent = `${point.label}: ${point.count} visitas`;
-    bar.append(title);
-    svg.append(bar);
-  });
+  const description = element("p", "chart-description", "Las barras muestran visitas registradas por mes; la escala y las líneas horizontales representan cantidades enteras desde cero.");
+  const summary = element("p", "chart-summary", chartSummary(points));
+  summary.id = "visits-chart-summary";
+  const legend = element("div", "chart-legend");
+  const key = element("span", "chart-key");
+  key.setAttribute("aria-hidden", "true");
+  legend.append(key, element("span", "", "Cada barra representa visitas registradas en un mes; el valor también aparece escrito sobre la barra."));
+  const chartRegion = element("div", "chart-scroll");
+  chartRegion.tabIndex = 0;
+  chartRegion.setAttribute("role", "region");
+  chartRegion.setAttribute("aria-label", "Gráfico mensual; desplazable horizontalmente en pantallas pequeñas");
+  chartRegion.append(chartSvg(points));
+  if (points.every((point) => point.count === 0)) {
+    const empty = element("p", "chart-empty", "Sin visitas en este período. El gráfico conserva los doce meses y una escala de cero a uno.");
+    figure.append(heading, description, summary, empty, legend, chartRegion);
+  } else {
+    figure.append(heading, description, summary, legend, chartRegion);
+  }
+
   const table = element("table", "data-table");
   const caption = element("caption", "", "Detalle mensual de visitas");
   const head = document.createElement("thead");
   const headRow = document.createElement("tr");
-  ["Mes", "Visitas", "Acumuladas"].forEach((label) => headRow.append(element("th", "", label)));
+  ["Mes", "Visitas", "Acumuladas"].forEach((label) => headRow.append(headerCell(label, "col")));
   head.append(headRow);
   const body = document.createElement("tbody");
   points.forEach((point) => {
     const row = document.createElement("tr");
     row.append(
-      element("th", "", point.label),
+      headerCell(point.label, "row"),
       element("td", "", point.count),
       element("td", "", point.cumulative),
     );
     body.append(row);
   });
   table.append(caption, head, body);
-  figure.append(heading, description, svg, table);
+  figure.append(tableRegion(table, "Tabla equivalente del gráfico de visitas mensuales"));
   return figure;
 }
 
@@ -83,7 +216,7 @@ function ratingTable(ratings) {
     body.append(row);
   });
   table.append(head, body);
-  section.append(table);
+  section.append(tableRegion(table, "Promedios personales por categoría"));
   return section;
 }
 

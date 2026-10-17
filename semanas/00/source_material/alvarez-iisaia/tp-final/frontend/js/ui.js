@@ -97,13 +97,6 @@ function cafeCard(cafe) {
   return card;
 }
 
-export function renderStats(stats) {
-  document.querySelector("#stat-total").textContent = stats.total;
-  document.querySelector("#stat-visited").textContent = stats.visited;
-  document.querySelector("#stat-pending").textContent = stats.pending;
-  document.querySelector("#stat-favorites").textContent = stats.favorites;
-}
-
 export function renderCafes(cafes, hasFilters) {
   const grid = document.querySelector("#cafe-grid");
   const empty = document.querySelector("#empty-state");

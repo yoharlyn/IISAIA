@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from backend.models import Cafe, User, Visit
+from backend.dashboard_routes import _monthly_points
 
 
 def _login(client: TestClient, code: str):
@@ -15,6 +16,50 @@ def _login(client: TestClient, code: str):
         params={"code": code, "state": state},
         follow_redirects=False,
     )
+
+
+def _visit_at(value: datetime) -> Visit:
+    return Visit(owner_id=1, cafe_id=1, visited_at=value)
+
+
+def test_monthly_points_are_ordered_across_a_year_change():
+    points = _monthly_points([], datetime(2026, 2, 15, tzinfo=timezone.utc))
+
+    assert [point.month for point in points] == [
+        "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08",
+        "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02",
+    ]
+    assert points[9].label == "diciembre 2025"
+    assert points[10].label == "enero 2026"
+
+
+def test_monthly_points_handle_zero_and_one_visit():
+    now = datetime(2026, 2, 15, tzinfo=timezone.utc)
+    empty = _monthly_points([], now)
+    single = _monthly_points([_visit_at(datetime(2026, 2, 1, tzinfo=timezone.utc))], now)
+
+    assert [point.count for point in empty] == [0] * 12
+    assert [point.cumulative for point in empty] == [0] * 12
+    assert [point.count for point in single] == [0] * 11 + [1]
+    assert [point.cumulative for point in single] == [0] * 11 + [1]
+
+
+def test_monthly_points_keep_sparse_data_and_repeated_maxima():
+    now = datetime(2026, 2, 15, tzinfo=timezone.utc)
+    visits = [
+        _visit_at(datetime(2025, 12, 2, tzinfo=timezone.utc)),
+        _visit_at(datetime(2025, 12, 20, tzinfo=timezone.utc)),
+        _visit_at(datetime(2026, 1, 3, tzinfo=timezone.utc)),
+        _visit_at(datetime(2026, 1, 25, tzinfo=timezone.utc)),
+        _visit_at(datetime(2026, 2, 8, tzinfo=timezone.utc)),
+    ]
+
+    points = _monthly_points(visits, now)
+
+    assert [point.count for point in points[-3:]] == [2, 2, 1]
+    assert [point.cumulative for point in points[-3:]] == [2, 4, 5]
+    assert max(point.count for point in points) == 2
+    assert [point.month for point in points if point.count == 2] == ["2025-12", "2026-01"]
 
 
 def test_dashboard_aggregates_months_ratings_and_nearby_pending(client, app):

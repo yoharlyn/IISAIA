@@ -1,5 +1,5 @@
-import { createCafe, deleteCafe, getConfig, getProfile, getStats, listCafes, searchRecommendations, updateCafe, updateProfile } from "./api.js";
-import { populateNeighborhoods, renderCafes, renderStats, setListState } from "./ui.js";
+import { createCafe, deleteCafe, getConfig, getProfile, listCafes, searchRecommendations, updateCafe, updateProfile } from "./api.js";
+import { populateNeighborhoods, renderCafes, setListState } from "./ui.js";
 import { initializeSession } from "./auth.js";
 import { getCurrentPositionForView, loadMapsScript, renderAtlasMap, requestCurrentPosition } from "./map.js";
 import { mountPlaceAutocomplete, showAutocompleteUnavailable } from "./places.js";
@@ -44,16 +44,14 @@ async function loadData() {
   const filters = currentFilters();
   setListState("Cargando cafeterías…", { loading: true });
   try {
-    const [cafes, allCafes, stats] = await Promise.all([
+    const [cafes, allCafes] = await Promise.all([
       listCafes(filters),
       listCafes(),
-      getStats(),
     ]);
     cafesById = new Map(cafes.map((cafe) => [String(cafe.id), cafe]));
     allCafesForMap = allCafes;
     renderCafes(cafes, hasFilters(filters));
     populateNeighborhoods(allCafes, filters.neighborhood);
-    renderStats(stats);
     renderAtlasMap(document.querySelector("#atlas-map"), allCafesForMap, mapConfig);
     setListState("");
   } catch (error) {

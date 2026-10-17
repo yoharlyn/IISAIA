@@ -11,6 +11,8 @@ def test_home_is_served_by_fastapi(client):
     assert '<dialog id="visit-dialog"' in response.text
     assert 'id="visit-status"' in response.text
     assert 'aria-live="polite"' in response.text
+    assert 'class="stats-grid"' not in response.text
+    assert 'id="stat-total"' not in response.text
 
 
 def test_only_the_configured_host_is_accepted(client):
@@ -125,8 +127,19 @@ def test_frontend_assets_are_served(client):
     assert "createElementNS" in dashboard_module.text
     assert 'element("table"' in dashboard_module.text
     assert 'element("caption"' in dashboard_module.text
+    assert "chart-grid-line" in dashboard_module.text
+    assert "chart-month-label" in dashboard_module.text
+    assert "chart-value-label" in dashboard_module.text
+    assert "chart-summary" in dashboard_module.text
+    assert "chart-legend" in dashboard_module.text
+    assert "chart-empty" in dashboard_module.text
+    assert "data-month" in dashboard_module.text
+    assert "data-count" in dashboard_module.text
     assert "innerHTML" not in dashboard_module.text
     assert "getDashboard" in api_module.text
+    assert "getStats" not in api_module.text
+    assert "getStats" not in app_module.text
+    assert "renderStats" not in ui_module.text
     assert 'id="dashboard-content"' in client.get("/").text
     assert 'aria-busy="true"' in client.get("/").text
 
