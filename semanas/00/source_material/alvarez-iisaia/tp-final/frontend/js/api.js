@@ -49,6 +49,7 @@ async function request(url, options = {}) {
 export const getSession = () => request(`${API_ROOT}/session`);
 export const getConfig = () => request(`${API_ROOT}/config`);
 export const getProfile = () => request(`${API_ROOT}/profile`);
+export const getNeighborhoods = () => request(`${API_ROOT}/neighborhoods`);
 export const updateProfile = (payload) => request(`${API_ROOT}/profile`, { method: "PATCH", body: JSON.stringify(payload) });
 
 export async function logoutSession() {

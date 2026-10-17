@@ -18,7 +18,7 @@ def test_profile_stores_user_selection_coordinates_ttl_and_derived_evidence(clie
     assert profile["display_name"] == "Dueña del atlas"
     assert profile["home_place_id"] == "home-place"
     assert profile["home_selected_address"] == TEST_ADDRESS
-    assert profile["home_neighborhood"] == "San Nicolas"
+    assert profile["home_neighborhood"] == "San Nicolás"
     assert profile["home_location_expires_at"]
     with Session(app.state.engine) as db:
         user = db.exec(select(User)).one()

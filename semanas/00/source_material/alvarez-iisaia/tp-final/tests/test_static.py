@@ -137,6 +137,9 @@ def test_frontend_assets_are_served(client):
     assert "data-count" in dashboard_module.text
     assert "innerHTML" not in dashboard_module.text
     assert "getDashboard" in api_module.text
+    assert "getNeighborhoods" in api_module.text
+    assert 'neighborhoodGroup("Barrios oficiales"' in ui_module.text
+    assert 'neighborhoodGroup("Valores históricos"' in ui_module.text
     assert "getStats" not in api_module.text
     assert "getStats" not in app_module.text
     assert "renderStats" not in ui_module.text

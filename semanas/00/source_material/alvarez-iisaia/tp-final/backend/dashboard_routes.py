@@ -11,6 +11,7 @@ from backend.distance import haversine_km
 from backend.geo import location_is_fresh
 from backend.google_places import Coordinates
 from backend.models import Cafe, Visit, utc_now
+from backend.neighborhoods import display_neighborhood
 from backend.schemas import (
     DashboardRead,
     DashboardSummary,
@@ -153,7 +154,7 @@ def _nearby_pending(
             NearbyPendingCafe(
                 cafe_id=cafe.id,
                 name=cafe.name,
-                neighborhood=cafe.neighborhood,
+                neighborhood=display_neighborhood(cafe.neighborhood),
                 distance_km=round(
                     haversine_km(origin, Coordinates(cafe.latitude, cafe.longitude)),
                     2,
@@ -172,7 +173,7 @@ def get_dashboard(session: SessionDep, auth: AuthDep):
         session.exec(select(Visit).where(Visit.owner_id == auth.user.id)).all()
     )
     visited_ids = {visit.cafe_id for visit in visits}
-    neighborhoods = Counter(cafe.neighborhood for cafe in cafes)
+    neighborhoods = Counter(display_neighborhood(cafe.neighborhood) for cafe in cafes)
     return DashboardRead(
         summary=DashboardSummary(
             total_cafes=len(cafes),

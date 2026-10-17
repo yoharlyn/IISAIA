@@ -26,6 +26,7 @@ def test_endpoints_require_authentication(app):
     with TestClient(app, base_url="http://127.0.0.1:8000") as anonymous:
         assert anonymous.get("/api/cafes").status_code == 401
         assert anonymous.get("/api/stats").status_code == 401
+        assert anonymous.get("/api/neighborhoods").status_code == 401
         assert anonymous.post("/api/cafes", json={}).status_code == 401
 
 

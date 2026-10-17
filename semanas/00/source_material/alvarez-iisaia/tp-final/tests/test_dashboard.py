@@ -142,3 +142,46 @@ def test_dashboard_is_empty_for_another_user(client, app):
     assert dashboard["neighborhoods"] == []
     assert dashboard["top_cafes"] == []
     assert dashboard["nearby_pending"] == []
+
+
+def test_dashboard_groups_safe_neighborhood_aliases_without_rewriting(client, app):
+    owner_id = client.get("/api/session").json()["user"]["id"]
+    with Session(app.state.engine) as session:
+        session.add(
+            Cafe(
+                owner_id=owner_id,
+                name="Alias sin tilde",
+                neighborhood="San Nicolas",
+                description="Histórica.",
+            )
+        )
+        session.add(
+            Cafe(
+                owner_id=owner_id,
+                name="Alias con tilde",
+                neighborhood="San Nicolás",
+                description="Canónica.",
+            )
+        )
+        session.add(
+            Cafe(
+                owner_id=owner_id,
+                name="Sin equivalencia",
+                neighborhood="Centro",
+                description="Histórica.",
+            )
+        )
+        session.commit()
+
+    neighborhoods = {
+        item["neighborhood"]: item["count"]
+        for item in client.get("/api/dashboard").json()["neighborhoods"]
+    }
+
+    assert neighborhoods["San Nicolás"] == 2
+    assert neighborhoods["Centro"] == 1
+    with Session(app.state.engine) as session:
+        stored = session.exec(
+            select(Cafe.neighborhood).where(Cafe.name == "Alias sin tilde")
+        ).one()
+    assert stored == "San Nicolas"

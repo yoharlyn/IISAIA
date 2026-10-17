@@ -38,14 +38,14 @@ def test_official_polygon_accepts_interior_boundary_and_rejects_exterior():
 
 
 def test_neighborhood_is_derived_from_official_polygons():
-    assert neighborhood_for(Coordinates(-34.6037, -58.3816)) == "San Nicolas"
+    assert neighborhood_for(Coordinates(-34.6037, -58.3816)) == "San Nicolás"
 
 
 def test_caba_requires_components_and_polygon():
     assert components_indicate_caba(CABA_COMPONENTS)
     assert validate_caba_location(
         Coordinates(-34.6037, -58.3816), CABA_COMPONENTS
-    ) == "San Nicolas"
+    ) == "San Nicolás"
 
     with pytest.raises(ValueError, match="dentro de CABA"):
         validate_caba_location(Coordinates(-34.9215, -57.9545), CABA_COMPONENTS)

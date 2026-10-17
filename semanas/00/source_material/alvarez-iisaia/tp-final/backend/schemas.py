@@ -136,6 +136,11 @@ class CafeSearchRead(CafeRead):
     distance_km: float | None = None
 
 
+class NeighborhoodCatalogRead(BaseModel):
+    official: list[str]
+    historical: list[str]
+
+
 class SearchOrigin(StrictSchema):
     type: Literal["current", "home"]
     latitude: float | None = Field(default=None, ge=-90, le=90)

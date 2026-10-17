@@ -78,7 +78,7 @@ def test_create_normalizes_strings_and_empty_image(client):
 
     assert response.status_code == 201
     assert response.json()["name"] == "Lumbre Café"
-    assert response.json()["neighborhood"] == "San Nicolas"
+    assert response.json()["neighborhood"] == "San Nicolás"
     assert response.json()["description"] == "Una descripción válida."
     assert response.json()["image_url"] is None
 

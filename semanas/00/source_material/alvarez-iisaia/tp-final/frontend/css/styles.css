@@ -67,6 +67,7 @@ main { padding-block: 54px 72px; }
 .filters-panel { margin-bottom: 52px; padding: 28px; border-radius: var(--radius-lg); background: var(--espresso-900); color: var(--cream-50); }
 .filters-panel .eyebrow { color: #e6a994; }
 .filters-panel h2 { color: var(--cream-50); }
+.filters-panel .field small { color: var(--cream-200); }
 .filters { display: grid; grid-template-columns: 2fr 1fr 1fr; align-items: end; gap: 18px; margin-top: 22px; }
 .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .field label, .ratings-fieldset legend { font-size: .86rem; font-weight: 750; }

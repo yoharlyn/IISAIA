@@ -120,18 +120,26 @@ export function renderCafes(cafes, hasFilters) {
   }
 }
 
-export function populateNeighborhoods(cafes, selected) {
-  const select = document.querySelector("#neighborhood-filter");
-  const first = element("option", "", "Todos los barrios");
-  first.value = "";
-  const neighborhoods = [...new Set(cafes.map((cafe) => cafe.neighborhood))]
-    .sort((a, b) => a.localeCompare(b, "es"));
-  const options = neighborhoods.map((name) => {
+function neighborhoodGroup(label, names) {
+  const group = document.createElement("optgroup");
+  group.label = label;
+  group.append(...names.map((name) => {
     const option = element("option", "", name);
     option.value = name;
     return option;
-  });
-  select.replaceChildren(first, ...options);
+  }));
+  return group;
+}
+
+export function populateNeighborhoods(catalog, selected) {
+  const select = document.querySelector("#neighborhood-filter");
+  const first = element("option", "", "Todos los barrios");
+  first.value = "";
+  const groups = [neighborhoodGroup("Barrios oficiales", catalog.official)];
+  if (catalog.historical.length) {
+    groups.push(neighborhoodGroup("Valores históricos", catalog.historical));
+  }
+  select.replaceChildren(first, ...groups);
   select.value = selected || "";
 }
 
