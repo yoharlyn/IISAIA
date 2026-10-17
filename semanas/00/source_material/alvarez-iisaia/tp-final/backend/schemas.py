@@ -141,6 +141,16 @@ class NeighborhoodCatalogRead(BaseModel):
     historical: list[str]
 
 
+class PreparedCafeRead(BaseModel):
+    place_id: str
+    display_name: str
+    formatted_address: str
+    neighborhood: str
+    attribution: Literal["Google Maps"] = "Google Maps"
+    already_saved: bool
+    existing_cafe_id: int | None = None
+
+
 class SearchOrigin(StrictSchema):
     type: Literal["current", "home"]
     latitude: float | None = Field(default=None, ge=-90, le=90)

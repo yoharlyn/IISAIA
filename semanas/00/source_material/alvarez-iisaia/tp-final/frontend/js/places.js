@@ -5,7 +5,12 @@ export function showAutocompleteUnavailable(container, message = "Autocompletado
   container.replaceChildren(fallback);
 }
 
-export function mountPlaceAutocomplete(container, onSelection, googleObject = globalThis.google) {
+export function mountPlaceAutocomplete(
+  container,
+  onSelection,
+  googleObject = globalThis.google,
+  { label = "Buscar una dirección en CABA", onError = null } = {},
+) {
   const PlaceAutocompleteElement = googleObject?.maps?.places?.PlaceAutocompleteElement;
   if (!PlaceAutocompleteElement) {
     showAutocompleteUnavailable(container);
@@ -16,12 +21,18 @@ export function mountPlaceAutocomplete(container, onSelection, googleObject = gl
     requestedLanguage: "es",
     requestedRegion: "ar",
   });
-  widget.setAttribute("aria-label", "Buscar una dirección en CABA");
+  widget.setAttribute("aria-label", label);
   widget.addEventListener("gmp-select", async (event) => {
-    const place = event.placePrediction.toPlace();
-    await place.fetchFields({ fields: ["id", "formattedAddress"] });
-    if (place.id && place.formattedAddress) {
-      onSelection({ place_id: place.id, selected_address: place.formattedAddress });
+    widget.setAttribute("aria-busy", "true");
+    try {
+      const place = event.placePrediction.toPlace();
+      await place.fetchFields({ fields: ["id", "formattedAddress"] });
+      if (!place.id) throw new Error("El resultado no tiene un Place ID verificable.");
+      await onSelection({ place_id: place.id, selected_address: place.formattedAddress || "" });
+    } catch (error) {
+      if (onError) onError(error);
+    } finally {
+      widget.removeAttribute("aria-busy");
     }
   });
   container.replaceChildren(widget);

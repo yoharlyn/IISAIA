@@ -86,9 +86,23 @@
           <div><p class="eyebrow">Mapa</p><h2 id="map-title">Tu atlas en CABA</h2></div>
           <button id="locate-user" class="button button-quiet" type="button">Usar mi ubicación en esta vista</button>
         </div>
+        <div class="map-place-search field">
+          <span id="map-place-search-label" class="field-label">Buscar cafetería en CABA</span>
+          <div id="map-place-autocomplete" aria-labelledby="map-place-search-label"></div>
+          <small>Este buscador es la alternativa completa para usar el mapa con teclado.</small>
+        </div>
         <p id="map-status" class="status-message" role="status" aria-live="polite">Preparando mapa…</p>
+        <section id="map-place-selection" class="map-place-selection" aria-labelledby="map-place-selection-title" hidden>
+          <h3 id="map-place-selection-title"></h3>
+          <dl>
+            <div><dt>Dirección</dt><dd id="map-place-address"></dd></div>
+            <div><dt>Barrio</dt><dd id="map-place-neighborhood"></dd></div>
+          </dl>
+          <p class="google-attribution">Fuente y atribución: Google Maps</p>
+          <button id="map-place-action" class="button button-primary" type="button">Agregar a mis cafeterías</button>
+        </section>
         <div id="atlas-map" class="atlas-map" data-map-state="loading" aria-label="Mapa de cafeterías"></div>
-        <p class="map-note">La ubicación actual permanece sólo en memoria. Distancias en línea recta, no tiempos de viaje.</p>
+        <p class="map-note">También podés seleccionar un punto de interés del mapa si Google informa un Place ID. La ubicación actual permanece sólo en memoria. Distancias en línea recta, no tiempos de viaje.</p>
       </section>
 
       <section class="profile-section" aria-labelledby="profile-title">
@@ -146,7 +160,14 @@
         <input id="cafe-id" name="id" type="hidden">
         <div class="form-grid">
           <div class="field"><label for="cafe-name">Nombre</label><input id="cafe-name" name="name" required maxlength="100" autocomplete="off"></div>
-          <div class="field field-full"><span id="cafe-autocomplete-label" class="field-label">Dirección en CABA</span><div id="cafe-autocomplete" aria-labelledby="cafe-autocomplete-label"></div><small id="cafe-address-selection">Seleccioná una dirección de la lista para continuar.</small><input name="place_id" type="hidden"><input name="selected_address" type="hidden"></div>
+          <div id="cafe-location-field" class="field field-full"><span id="cafe-autocomplete-label" class="field-label">Dirección en CABA</span><div id="cafe-autocomplete" aria-labelledby="cafe-autocomplete-label"></div><small id="cafe-address-selection">Seleccioná una dirección de la lista para continuar.</small></div>
+          <section id="cafe-prepared-location" class="field field-full prepared-location" aria-labelledby="cafe-prepared-title" hidden>
+            <h3 id="cafe-prepared-title">Ubicación verificada</h3>
+            <dl><div><dt>Dirección de Google</dt><dd id="cafe-prepared-address"></dd></div><div><dt>Barrio</dt><dd id="cafe-prepared-neighborhood"></dd></div></dl>
+            <p class="google-attribution">Fuente y atribución: Google Maps</p>
+            <button id="change-cafe-location" class="button button-quiet" type="button">Elegir otra dirección</button>
+          </section>
+          <input name="place_id" type="hidden"><input name="selected_address" type="hidden">
           <div class="field field-full"><label for="cafe-description">Descripción</label><textarea id="cafe-description" name="description" required maxlength="600" rows="4"></textarea><small>Hasta 600 caracteres.</small></div>
           <div class="field field-full"><label for="cafe-image">URL de fotografía <span>(opcional)</span></label><input id="cafe-image" name="image_url" type="url" maxlength="2048" inputmode="url" placeholder="https://ejemplo.com/cafe.jpg"></div>
           <label class="check-field form-favorite" for="cafe-favorite"><input id="cafe-favorite" name="is_favorite" type="checkbox">Marcar como favorita</label>

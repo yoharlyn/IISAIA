@@ -203,8 +203,9 @@ async def create_cafe(
     )
     values = payload.model_dump(
         exclude=set(RATING_FIELDS)
-        | {"visit_status", "neighborhood", "place_id", "selected_address"}
+        | {"name", "visit_status", "neighborhood", "place_id", "selected_address"}
     )
+    values["name"] = verified.details.display_name
     values.update(location_values(verified))
     values["location_status"] = "VERIFIED"
     cafe = Cafe(owner_id=auth.user.id, **values)
@@ -249,6 +250,8 @@ async def update_cafe(
             selected_address=supplied.pop("selected_address"),
         )
         cafe.sqlmodel_update(location_values(verified))
+        supplied.pop("name", None)
+        cafe.name = verified.details.display_name
         cafe.location_status = "VERIFIED"
     cafe.sqlmodel_update(
         {

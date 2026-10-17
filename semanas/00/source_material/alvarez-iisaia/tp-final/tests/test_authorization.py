@@ -28,6 +28,7 @@ def test_endpoints_require_authentication(app):
         assert anonymous.get("/api/stats").status_code == 401
         assert anonymous.get("/api/neighborhoods").status_code == 401
         assert anonymous.post("/api/cafes", json={}).status_code == 401
+        assert anonymous.post("/api/places/place-id/prepare-cafe").status_code == 401
 
 
 def test_two_users_cannot_access_each_others_cafes(app):

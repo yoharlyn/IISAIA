@@ -111,12 +111,12 @@ function recommendationCard(item) {
   const saveGroup = element("section", "recommendation-group recommendation-save");
   saveGroup.append(
     heading("Antes de guardar"),
-    element("p", "", "El nombre será local. Deberás confirmar nuevamente la dirección con el autocompletado; los datos actuales de Google no se copiarán como un snapshot."),
+    element("p", "", "Verificaremos nuevamente el nombre, la dirección y el barrio antes de abrir el formulario. Sólo se guardará cuando confirmes la acción."),
   );
-  const button = element("button", "button button-primary", "Confirmar datos para guardar");
+  const button = element("button", "button button-primary", "Agregar a mis cafeterías");
   button.type = "button";
   button.addEventListener("click", () => document.dispatchEvent(
-    new CustomEvent("coffee-atlas:prepare-recommendation", { detail: item }),
+    new CustomEvent("coffee-atlas:prepare-recommendation", { detail: { item, trigger: button } }),
   ));
   saveGroup.append(button);
   card.append(saveGroup);

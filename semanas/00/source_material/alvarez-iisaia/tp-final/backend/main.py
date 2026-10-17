@@ -20,6 +20,7 @@ from backend.recommendation_routes import router as recommendation_router
 from backend.visit_routes import router as visit_router
 from backend.photo_routes import router as photo_router
 from backend.dashboard_routes import router as dashboard_router
+from backend.place_routes import router as place_router
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -112,6 +113,7 @@ def create_app(
     application.include_router(visit_router)
     application.include_router(photo_router)
     application.include_router(dashboard_router)
+    application.include_router(place_router)
     application.include_router(router)
     application.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     return application

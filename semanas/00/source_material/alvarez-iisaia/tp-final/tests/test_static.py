@@ -99,6 +99,8 @@ def test_frontend_assets_are_served(client):
     assert "localStorage" not in map_module.text
     assert "sessionStorage" not in map_module.text
     assert 'id="atlas-map"' in client.get("/").text
+    assert 'id="map-place-autocomplete"' in client.get("/").text
+    assert "alternativa completa para usar el mapa con teclado" in client.get("/").text
     assert places_module.status_code == 200
     assert "PlaceAutocompleteElement" in places_module.text
     assert "gmp-select" in places_module.text
@@ -112,6 +114,9 @@ def test_frontend_assets_are_served(client):
     assert "innerHTML" not in recommendations_module.text
     assert 'id="home-autocomplete"' in client.get("/").text
     assert 'id="cafe-autocomplete"' in client.get("/").text
+    assert 'id="cafe-prepared-location"' in client.get("/").text
+    assert "prepareCafe" in api_module.text
+    assert "Agregar a mis cafeterías" in recommendations_module.text
     assert "provienen de Google Maps" in client.get("/").text
     assert "el cálculo determinístico" in client.get("/").text
     assert visits_module.status_code == 200

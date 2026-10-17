@@ -10,6 +10,7 @@ from backend.db import get_session
 from backend.geo import validate_caba_location, location_is_fresh
 from backend.google_places import Coordinates, PlacesError
 from backend.locations import location_values, places_provider, verify_place_selection
+from backend.place_preparation import prepare_cafe
 from backend.models import Cafe, PlaceDiscovery, Visit, utc_now
 from backend.recommendations import (
     candidate_distance,
@@ -143,20 +144,16 @@ async def search_recommendations(
 async def prepare_save(
     place_id: str,
     request: Request,
-    _context: AuthContext = Depends(require_csrf),
+    db: Session = Depends(get_session),
+    context: AuthContext = Depends(require_csrf),
 ):
-    try:
-        details = await places_provider(request).details(place_id)
-    except PlacesError:
-        raise HTTPException(status_code=503, detail="Google Places no está disponible.") from None
-    try:
-        neighborhood = validate_caba_location(details.location, details.address_components)
-    except ValueError as error:
-        raise HTTPException(status_code=422, detail=str(error)) from None
+    prepared = await prepare_cafe(
+        places_provider(request), db, owner_id=context.user.id, place_id=place_id
+    )
     return {
-        "place_id": details.place_id,
-        "formatted_address": details.formatted_address,
-        "neighborhood": neighborhood,
+        "place_id": prepared.place_id,
+        "formatted_address": prepared.formatted_address,
+        "neighborhood": prepared.neighborhood,
         "attribution": "Google Maps",
     }
 

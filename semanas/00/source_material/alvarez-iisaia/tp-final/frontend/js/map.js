@@ -2,6 +2,8 @@ const DEFAULT_CENTER = { lat: -34.6037, lng: -58.3816 };
 let currentPosition = null;
 let mapInstance = null;
 let markers = [];
+let mapClickListener = null;
+let placeSelectionHandler = null;
 
 
 export function getCurrentPositionForView() {
@@ -78,7 +80,13 @@ function addMarker(position, title, maps = globalThis.google?.maps) {
 }
 
 
-export function renderAtlasMap(element, cafes, config, maps = globalThis.google?.maps) {
+export function renderAtlasMap(
+  element,
+  cafes,
+  config,
+  { onPlaceSelected = null } = {},
+  maps = globalThis.google?.maps,
+) {
   if (!config.google_maps_enabled || !maps?.Map) {
     element.replaceChildren();
     element.setAttribute("data-map-state", "unavailable");
@@ -91,6 +99,14 @@ export function renderAtlasMap(element, cafes, config, maps = globalThis.google?
     streetViewControl: false,
     mapTypeControl: false,
   });
+  placeSelectionHandler = onPlaceSelected;
+  if (!mapClickListener && typeof mapInstance.addListener === "function") {
+    mapClickListener = mapInstance.addListener("click", (event) => {
+      if (!event.placeId || !placeSelectionHandler) return;
+      event.stop?.();
+      placeSelectionHandler(event.placeId);
+    });
+  }
   clearMarkers();
   cafes
     .filter((cafe) => cafe.location_status === "VERIFIED" && cafe.latitude !== null && cafe.longitude !== null)
