@@ -77,7 +77,7 @@ function photoCard(photo) {
   }, { once: true });
   media.append(image, fallback);
   const caption = element("figcaption", "", photo.caption);
-  const remove = button("Eliminar foto", "delete-photo", photo.id, "button button-danger");
+  const remove = button("Eliminar foto", "delete-photo", photo.id, "button button-destructive-quiet");
   card.append(media, caption, remove);
   return card;
 }
@@ -119,7 +119,7 @@ function visitCard(visit) {
   const actions = element("div", "visit-actions");
   actions.append(
     button("Editar visita", "edit-visit", visit.id),
-    button("Eliminar visita", "delete-visit", visit.id, "button button-danger"),
+    button("Eliminar visita", "delete-visit", visit.id, "button button-destructive-quiet"),
   );
   heading.append(title, actions);
   card.append(heading);

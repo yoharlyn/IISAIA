@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/css/styles.css">
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Saltar al contenido</a>
     <p id="session-loading" class="session-state" role="status" aria-live="polite">Comprobando sesión…</p>
 
     <section id="login-view" class="login-view" aria-labelledby="login-title" hidden>
@@ -33,19 +34,31 @@
         <div class="session-controls">
           <span><strong id="session-name"></strong><small id="session-email"></small></span>
           <button class="button button-quiet" id="logout-button" type="button">Cerrar sesión</button>
-          <button class="button button-primary" id="add-cafe" type="button">Agregar cafetería</button>
+          <button class="button button-primary" id="add-cafe" type="button">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            <span>Agregar cafetería</span>
+          </button>
         </div>
       </div>
+      <nav class="section-nav" aria-label="Secciones del atlas">
+        <div class="section-nav-inner">
+          <a href="#dashboard">Dashboard</a>
+          <a href="#explorar">Explorar</a>
+          <a href="#mapa">Mapa</a>
+          <a href="#descubrir">Descubrir</a>
+          <a href="#coleccion">Colección</a>
+        </div>
+      </nav>
     </header>
 
-    <main class="authenticated-content" hidden>
+    <main id="main-content" class="authenticated-content" tabindex="-1" hidden>
       <section class="hero" aria-labelledby="page-title">
         <p class="eyebrow">Atlas personal</p>
         <h1 id="page-title">Cada café deja una coordenada</h1>
         <p>Guardá los lugares que querés conocer y recordá los que ya forman parte de tu recorrido.</p>
       </section>
 
-      <section class="dashboard-section" aria-labelledby="dashboard-title">
+      <section id="dashboard" class="dashboard-section anchored-section" aria-labelledby="dashboard-title">
         <div class="section-heading">
           <div><p class="eyebrow">Tu recorrido</p><h2 id="dashboard-title">Dashboard personal</h2></div>
         </div>
@@ -53,7 +66,7 @@
         <div id="dashboard-content" aria-busy="true"></div>
       </section>
 
-      <section class="filters-panel" aria-labelledby="filters-title">
+      <section id="explorar" class="filters-panel anchored-section" aria-labelledby="filters-title">
         <div class="section-heading">
           <div><p class="eyebrow">Explorar</p><h2 id="filters-title">Encontrá tu próxima parada</h2></div>
         </div>
@@ -81,54 +94,63 @@
         </form>
       </section>
 
-      <section class="map-section" aria-labelledby="map-title">
+      <section id="mapa" class="map-section anchored-section" aria-labelledby="map-title">
         <div class="section-heading">
           <div><p class="eyebrow">Mapa</p><h2 id="map-title">Tu atlas en CABA</h2></div>
           <button id="locate-user" class="button button-quiet" type="button">Usar mi ubicación en esta vista</button>
         </div>
-        <div class="map-place-search field">
-          <span id="map-place-search-label" class="field-label">Buscar cafetería en CABA</span>
-          <div id="map-place-autocomplete" aria-labelledby="map-place-search-label"></div>
-          <small>Este buscador es la alternativa completa para usar el mapa con teclado.</small>
+        <div class="map-layout">
+          <div class="map-controls">
+            <div class="map-place-search field">
+              <span id="map-place-search-label" class="field-label">Buscar cafetería en CABA</span>
+              <div id="map-place-autocomplete" aria-labelledby="map-place-search-label"></div>
+              <small>Este buscador es la alternativa completa para usar el mapa con teclado.</small>
+            </div>
+            <p id="map-status" class="status-message state-message" role="status" aria-live="polite">Preparando mapa…</p>
+            <section id="map-place-selection" class="map-place-selection" aria-labelledby="map-place-selection-title" hidden>
+              <p class="state-kicker">Lugar verificado</p>
+              <h3 id="map-place-selection-title"></h3>
+              <dl>
+                <div><dt>Dirección</dt><dd id="map-place-address"></dd></div>
+                <div><dt>Barrio</dt><dd id="map-place-neighborhood"></dd></div>
+              </dl>
+              <p class="google-attribution">Fuente y atribución: Google Maps</p>
+              <button id="map-place-action" class="button button-primary" type="button">Agregar a mis cafeterías</button>
+            </section>
+          </div>
+          <div class="map-canvas">
+            <div id="atlas-map" class="atlas-map" data-map-state="loading" aria-label="Mapa de cafeterías"></div>
+            <p class="map-note">También podés seleccionar un punto de interés del mapa si Google informa un Place ID. La ubicación actual permanece sólo en memoria. Distancias en línea recta, no tiempos de viaje.</p>
+          </div>
         </div>
-        <p id="map-status" class="status-message" role="status" aria-live="polite">Preparando mapa…</p>
-        <section id="map-place-selection" class="map-place-selection" aria-labelledby="map-place-selection-title" hidden>
-          <h3 id="map-place-selection-title"></h3>
-          <dl>
-            <div><dt>Dirección</dt><dd id="map-place-address"></dd></div>
-            <div><dt>Barrio</dt><dd id="map-place-neighborhood"></dd></div>
-          </dl>
-          <p class="google-attribution">Fuente y atribución: Google Maps</p>
-          <button id="map-place-action" class="button button-primary" type="button">Agregar a mis cafeterías</button>
+      </section>
+
+      <div id="descubrir" class="discovery-layout anchored-section">
+        <section class="profile-section" aria-labelledby="profile-title">
+          <div class="section-heading"><div><p class="eyebrow">Perfil</p><h2 id="profile-title">Tu punto de partida</h2></div></div>
+          <form id="profile-form" class="profile-form">
+            <div class="field"><label for="profile-display-name">Nombre visible</label><input id="profile-display-name" required maxlength="100"></div>
+            <div class="field"><span id="home-autocomplete-label" class="field-label">Domicilio en CABA</span><div id="home-autocomplete" aria-labelledby="home-autocomplete-label"></div><small id="home-address-selection">No configuraste un domicilio.</small></div>
+            <button id="save-profile" class="button button-primary" type="submit">Guardar perfil</button>
+            <p id="profile-status" class="status-message" role="status" aria-live="polite"></p>
+          </form>
         </section>
-        <div id="atlas-map" class="atlas-map" data-map-state="loading" aria-label="Mapa de cafeterías"></div>
-        <p class="map-note">También podés seleccionar un punto de interés del mapa si Google informa un Place ID. La ubicación actual permanece sólo en memoria. Distancias en línea recta, no tiempos de viaje.</p>
-      </section>
 
-      <section class="profile-section" aria-labelledby="profile-title">
-        <div class="section-heading"><div><p class="eyebrow">Perfil</p><h2 id="profile-title">Tu punto de partida</h2></div></div>
-        <form id="profile-form" class="profile-form">
-          <div class="field"><label for="profile-display-name">Nombre visible</label><input id="profile-display-name" required maxlength="100"></div>
-          <div class="field field-full"><span id="home-autocomplete-label" class="field-label">Domicilio en CABA</span><div id="home-autocomplete" aria-labelledby="home-autocomplete-label"></div><small id="home-address-selection">No configuraste un domicilio.</small></div>
-          <button id="save-profile" class="button button-primary" type="submit">Guardar perfil</button>
-          <p id="profile-status" role="status" aria-live="polite"></p>
-        </form>
-      </section>
+        <section class="recommendations-section" aria-labelledby="recommendations-title">
+          <div class="section-heading"><div><p class="eyebrow">Descubrir</p><h2 id="recommendations-title">Recomendaciones cercanas</h2></div></div>
+          <p class="recommendations-disclosure">Cada resultado separa los datos actuales de Google Maps, el cálculo determinístico realizado para tu atlas y la información que se guardaría localmente.</p>
+          <form id="recommendations-form" class="recommendations-form">
+            <fieldset><legend>Origen</legend><label><input type="radio" name="origin" value="current" checked> Ubicación actual</label><label><input type="radio" name="origin" value="home"> Domicilio</label></fieldset>
+            <div class="field"><label for="recommendation-radius">Radio</label><select id="recommendation-radius" name="radius_km"><option value="1">1 km</option><option value="3" selected>3 km</option><option value="5">5 km</option></select></div>
+            <button class="button button-primary" type="submit">Buscar recomendaciones</button>
+          </form>
+          <p id="recommendations-status" class="status-message" role="status" aria-live="polite">La búsqueda se ejecuta sólo cuando la solicitás.</p>
+          <div id="recommendations-list" class="recommendations-grid"></div>
+          <p class="google-attribution">Los nombres, direcciones, ratings, reseñas, estados comerciales, aperturas y enlaces mostrados en los resultados actuales provienen de Google Maps.</p>
+        </section>
+      </div>
 
-      <section class="recommendations-section" aria-labelledby="recommendations-title">
-        <div class="section-heading"><div><p class="eyebrow">Descubrir</p><h2 id="recommendations-title">Recomendaciones cercanas</h2></div></div>
-        <p class="recommendations-disclosure">Cada resultado separa los datos actuales de Google Maps, el cálculo determinístico realizado para tu atlas y la información que se guardaría localmente.</p>
-        <form id="recommendations-form" class="recommendations-form">
-          <fieldset><legend>Origen</legend><label><input type="radio" name="origin" value="current" checked> Ubicación actual</label><label><input type="radio" name="origin" value="home"> Domicilio</label></fieldset>
-          <div class="field"><label for="recommendation-radius">Radio</label><select id="recommendation-radius" name="radius_km"><option value="1">1 km</option><option value="3" selected>3 km</option><option value="5">5 km</option></select></div>
-          <button class="button button-primary" type="submit">Buscar recomendaciones</button>
-        </form>
-        <p id="recommendations-status" role="status" aria-live="polite">La búsqueda se ejecuta sólo cuando la solicitás.</p>
-        <div id="recommendations-list" class="recommendations-grid"></div>
-        <p class="google-attribution">Los nombres, direcciones, ratings, reseñas, estados comerciales, aperturas y enlaces mostrados en los resultados actuales provienen de Google Maps.</p>
-      </section>
-
-      <section class="atlas-section" aria-labelledby="atlas-title">
+      <section id="coleccion" class="atlas-section anchored-section" aria-labelledby="atlas-title">
         <div class="section-heading">
           <div><p class="eyebrow">Colección</p><h2 id="atlas-title">Mis cafeterías</h2></div>
           <p id="result-count" class="result-count" aria-live="polite"></p>

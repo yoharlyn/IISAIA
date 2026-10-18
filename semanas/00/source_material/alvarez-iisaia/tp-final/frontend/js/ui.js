@@ -12,6 +12,25 @@ function element(tag, className, text) {
   return node;
 }
 
+const ICON_PATHS = {
+  heart: ["M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6a5.5 5.5 0 0 0 1-8.8Z"],
+  visits: ["M8 2v4M16 2v4M3 9h18", "M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"],
+  edit: ["M12 20h9", "M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"],
+  delete: ["M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6", "M10 11v6M14 11v6"],
+};
+
+function icon(name) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  ICON_PATHS[name].forEach((data) => {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", data);
+    svg.append(path);
+  });
+  return svg;
+}
+
 function imageFallback(name) {
   const fallback = element("div", "image-fallback");
   fallback.setAttribute("role", "img");
@@ -38,15 +57,15 @@ function cardMedia(cafe) {
   }
   media.append(fallback);
 
-  const favorite = element(
-    "button",
-    "favorite-button",
-    cafe.is_favorite ? "Quitar de favoritas" : "Agregar a favoritas",
-  );
+  const favorite = element("button", "favorite-button");
   favorite.type = "button";
   favorite.dataset.action = "toggle-favorite";
   favorite.dataset.id = cafe.id;
   favorite.setAttribute("aria-pressed", String(cafe.is_favorite));
+  favorite.append(
+    icon("heart"),
+    document.createTextNode(cafe.is_favorite ? "Quitar de favoritas" : "Agregar a favoritas"),
+  );
   media.append(favorite);
   return media;
 }
@@ -64,11 +83,12 @@ function ratingList(cafe) {
   return list;
 }
 
-function actionButton(label, action, id, className = "button button-quiet") {
-  const button = element("button", className, label);
+function actionButton(label, action, id, className = "button button-quiet", iconName) {
+  const button = element("button", className);
   button.type = "button";
   button.dataset.action = action;
   button.dataset.id = id;
+  button.append(icon(iconName), document.createTextNode(label));
   return button;
 }
 
@@ -92,9 +112,9 @@ function cafeCard(cafe) {
   );
   const actions = element("div", "card-actions");
   actions.append(
-    actionButton("Visitas", "visits", cafe.id, "button button-primary"),
-    actionButton("Editar", "edit", cafe.id),
-    actionButton("Eliminar", "delete", cafe.id, "button button-danger"),
+    actionButton("Visitas", "visits", cafe.id, "button button-primary", "visits"),
+    actionButton("Editar", "edit", cafe.id, "button button-quiet", "edit"),
+    actionButton("Eliminar", "delete", cafe.id, "button button-destructive-quiet", "delete"),
   );
   body.append(meta, title, description, ratingList(cafe), actions);
   card.append(body);
