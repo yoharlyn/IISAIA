@@ -1,29 +1,30 @@
 # Evidencia de verificación — Coffee Atlas V3
 
-Fecha de auditoría: 17 de octubre de 2026.
+Fecha de auditoría final: 18 de octubre de 2026.
 
 ## Alcance y aislamiento
 
 - Branch auditada: `codex/coffee-atlas-v3`.
 - URL canónica: `http://127.0.0.1:8000`.
-- Tests ejecutados offline con cachés aisladas y eliminadas al finalizar.
-- Migraciones ejecutadas exclusivamente sobre bases creadas por pytest en
+- Tests ejecutados offline, sin caché de pytest ni bytecode dentro del proyecto.
+- Tests de migración ejecutados exclusivamente sobre bases creadas por pytest en
   directorios temporales.
 - Navegador ejecutado con SQLite V4, uploads, dos identidades, Places y mapa
   temporales o falsos.
 - No se leyó `.env`; sólo se comprobó su presencia.
-- No se usaron Auth0, Google, red, base ni uploads reales.
+- No se usaron Auth0, Google ni red. Los tests y el navegador no usaron la base
+  ni los uploads reales.
 - No se realizó push, merge, rebase, tag ni operación sobre `main`.
 
-Esta evidencia no afirma que la base real haya sido migrada, respaldada,
-restaurada o verificada.
+La migración y auditoría de la base real se realizaron después mediante
+checkpoints expresos, con el servidor detenido. No se ejecutó restore.
 
 ## Resultado ejecutivo
 
 - Fallas bloqueantes: **ninguna**.
-- Pruebas específicas V3: **95 aprobadas**, 0 fallas, 1 warning.
+- Pruebas específicas V3.6: **12 aprobadas**, 0 fallas, 1 warning.
 - Pruebas específicas de migración: **11 aprobadas**, 0 fallas, 1 warning.
-- Suite completa: **114 aprobadas**, 0 fallas, 1 warning.
+- Suite completa: **118 aprobadas**, 0 fallas, 1 warning.
 - `compileall backend`: correcto.
 - `git diff --check`: correcto al cierre documental.
 - Navegador: 320, 768 y 1440 px sin overflow horizontal ni errores de consola.
@@ -38,16 +39,11 @@ no bloqueante previa a esa actualización.
 Pruebas específicas ejecutadas:
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest -p no:cacheprovider -q \
-  tests/test_dashboard.py tests/test_neighborhoods.py tests/test_locations.py \
-  tests/test_place_preparation.py tests/test_recommendations.py \
-  tests/test_cafes_write.py tests/test_cafes_read.py \
-  tests/test_migrations.py tests/test_authorization.py tests/test_auth.py \
-  tests/test_config.py tests/test_static.py tests/test_visits.py \
-  tests/test_photos.py tests/test_profile.py
+PYTHONDONTWRITEBYTECODE=1 uv run --offline pytest -p no:cacheprovider -q \
+  tests/test_frontend_v36.py tests/test_static.py
 ```
 
-Resultado: `95 passed, 1 warning in 4.15s`.
+Resultado: `12 passed, 1 warning in 0.38s`.
 
 Suite completa offline:
 
@@ -56,7 +52,7 @@ PYTHONDONTWRITEBYTECODE=1 \
   uv run --offline pytest -p no:cacheprovider -q
 ```
 
-Resultado: `114 passed, 1 warning in 4.77s`.
+Resultado: `118 passed, 1 warning in 4.48s`.
 
 Compilación:
 
@@ -74,10 +70,26 @@ Resultado: exit code `0`, sin diagnósticos.
   lectura, escritura y autorización.
 - La serie contiene doce meses en orden, incluido cambio de año.
 - Cero, una visita, datos dispersos y máximos repetidos están cubiertos.
-- Gráfico, resumen, leyenda y tabla se derivan de la misma serie; la tabla
+- Gráfico, resumen y tabla se derivan de la misma serie; la tabla
   conserva mes, visitas y acumulado.
 - El navegador mostró escala entera, líneas de referencia, meses identificables
   y alternativa tabular accesible.
+- V3.6 omite etiquetas de cero sobre los meses, conserva un único cero de eje,
+  usa ticks enteros sin duplicados y evita scroll innecesario en escritorio.
+
+## Orden final y paginación V3.6
+
+- Menú y DOM siguen Descubrir, Mis cafeterías, Mapa y Dashboard.
+- Perfil y recomendaciones comparten fila en escritorio y se apilan en móvil.
+- El formulario único de filtros está dentro de Mis cafeterías, antes de la
+  grilla, sin alterar su comportamiento.
+- Las recomendaciones se paginan localmente de a cuatro mediante `slice` sobre
+  los resultados ya recibidos.
+- Los casos 0, 1, 4, 5 y 19 fueron comprobados; una búsqueda nueva vuelve a la
+  página 1 y la paginación se oculta cuando no hace falta.
+- Anterior/Siguiente conservan foco útil en los límites y anuncian el cambio por
+  una región `aria-live`.
+- Cambiar de página no ejecutó llamadas adicionales ni escrituras.
 
 ## Barrios de CABA
 
@@ -141,6 +153,42 @@ Cubrió exclusivamente en `tmp_path`:
 - rutas de backup, upgrade y restore contenidas en el directorio temporal.
 
 No se usó una copia de la base real.
+
+## Migración y auditoría de la base real
+
+La operación real se realizó con autorizaciones independientes y el servidor
+detenido:
+
+- backup previo conservado en
+  `data/backups/coffee-atlas-v3-pre-v4-20261018-000900.db`;
+- SHA-256 del backup:
+  `799be62172905d5e7921c827bf8b57006896b8ce983ad3302ab72ef5a7848013`;
+- migración V3→V4 y `verify` completados;
+- no se ejecutó restore.
+
+El estado inmediatamente posterior a la migración fue `94208` bytes, mtime
+`2026-10-18T00:43:03-0300`, SHA-256
+`f9beb5b86ffa176fd17f3fa8ebd2bc1942339db8da3357d22fd25282176bba92`
+y conteos `9/8/4` para cafeterías, visitas y fotografías.
+
+La auditoría final abrió SQLite exclusivamente con `-readonly` y
+`PRAGMA query_only=ON`. Registró:
+
+- `94208` bytes, permisos `0644`, mtime `2026-10-18T11:04:58-0300` y SHA-256
+  `d5a71aa99080f2b87cc01702d048ba125451640c2411ae69a8a1006db51c9eb6`;
+- versiones 2, 3 y 4 registradas una vez cada una; V4 es la actual;
+- `cafes.description` con `notnull=0`;
+- `integrity_check=ok` y cero filas en `foreign_key_check`;
+- conteos actuales `10/8/4`;
+- tablas `cafes`, `migration_imports`, `place_discoveries`,
+  `schema_migrations`, `sessions`, `users`, `visit_photos` y `visits`;
+- unicidades históricas y los índices explícitos de `visit_photos` conservados;
+- ausencia de `-wal`, `-shm`, `-journal`, `.restoring` y `.before-restore`.
+
+Tamaño, mtime y SHA-256 resultaron idénticos antes y después de la auditoría.
+Frente al estado posmigración, el tamaño y el esquema permanecen iguales, las
+visitas y fotografías no cambiaron y existe una cafetería adicional. Esos datos
+no permiten atribuir el cambio a una acción o identidad: **causa no demostrable**.
 
 ## Seguridad y privacidad
 
@@ -236,8 +284,8 @@ no tests E2E persistentes. No se agregó Node ni una infraestructura E2E.
 - La accesibilidad de los POI nativos depende de Google; el buscador accesible
   permanece como recorrido principal y completo.
 - Auth0 y Google reales conservan sus checkpoints separados; no se repitieron.
-- La base real V3 requiere autorización específica posterior para status,
-  backup, upgrade, verify o restore.
+- Cualquier operación real futura —incluido restore— conserva el requisito de
+  autorización específica y servidor detenido.
 - SQLite y uploads continúan siendo almacenamiento local sin replicación.
 
 ## Documentos históricos

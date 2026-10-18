@@ -426,7 +426,43 @@ Mostrar informe final, diff, commits y estado. No publicar ni fusionar.
 - `test: verificar coffee atlas v3 de punta a punta`
 - `docs: cerrar entrega de coffee atlas v3`
 
-## 10. Estrategia global de pruebas
+## 10. Fase V3.6 — ajustes finales de usabilidad
+
+### Objetivo
+
+Cerrar la composición definitiva de la interfaz sin alterar contratos ni
+persistencia.
+
+### Cambios funcionales
+
+- Ordenar Descubrir, Mis cafeterías, Mapa y Dashboard también en el DOM y menú.
+- Integrar el formulario existente de filtros dentro de Mis cafeterías.
+- Omitir ceros repetidos, deduplicar ticks enteros y compactar el gráfico.
+- Paginar en cliente las recomendaciones de a cuatro sobre el resultado recibido.
+- Mantener foco, anuncios accesibles, tabla equivalente y scroll localizado.
+
+### Tests y verificación
+
+- Orden de menú/secciones, anclas y filtro único.
+- Escala con cero, máximos 1, 2 y 8, repetidos y cambio de año.
+- Paginación con 0, 1, 4, 5 y 19 elementos sin llamadas adicionales.
+- Navegador a 320, 768 y 1440 px, modo normal/degradado y consola limpia.
+- 12 tests específicos, suite completa, compilación y `git diff --check`.
+
+### Criterio de cierre
+
+Revisión visual aprobada, seis archivos de frontend/tests comprometidos y árbol
+limpio, sin dependencias, documentación ni backend en el commit funcional.
+
+### Checkpoint
+
+**CHECKPOINT V3.6 — AJUSTES FINALES COMPROMETIDOS**
+
+### Commit
+
+`feat: reorganizar interfaz y paginar recomendaciones`
+
+## 11. Estrategia global de pruebas
 
 ### Unitarias
 
@@ -453,7 +489,7 @@ Mostrar informe final, diff, commits y estado. No publicar ni fusionar.
 - barrios oficiales e históricos;
 - estados degradados y resoluciones requeridas.
 
-## 11. Riesgos y límites
+## 12. Riesgos y límites
 
 - Cambios de contrato o eventos de Google Maps pueden requerir ajustar el flujo
   complementario de POI; el buscador accesible no depende de ese recorrido.

@@ -4,7 +4,8 @@ Coffee Atlas es un atlas y diario personal de cafeterías de CABA desarrollado
 con FastAPI, SQLModel, SQLite y un frontend HTML, CSS y JavaScript vanilla. V3
 unifica el alta desde Google Places, consolida el catálogo oficial de barrios,
 admite descripciones opcionales y renueva el dashboard y el sistema visual sin
-agregar frameworks ni dependencias de frontend.
+agregar frameworks ni dependencias de frontend. El recorrido final presenta
+Descubrir, Mis cafeterías, Mapa y Dashboard en ese orden.
 
 La especificación vigente está en [`docs/spec-v3.md`](docs/spec-v3.md) y el
 orden aprobado en [`docs/plan-v3.md`](docs/plan-v3.md). Los documentos V1 y V2
@@ -16,6 +17,7 @@ permanecen congelados como registro histórico.
 - Sesiones locales opacas; SQLite conserva sólo el hash del token.
 - Cafeterías, visitas, fotos, dashboard y recomendaciones aislados por persona.
 - Un único dashboard con gráfico SVG de doce meses, resumen y tabla accesible.
+- Filtros integrados en **Mis cafeterías**, antes de la colección.
 - Catálogo derivado del GeoJSON versionado con los 48 barrios oficiales de CABA.
 - Valores históricos de barrio separados, filtrables y privados por propietario.
 - Buscador accesible de Places junto al mapa y selección complementaria de POI.
@@ -25,6 +27,8 @@ permanecen congelados como registro histórico.
 - Descripción opcional persistida como `NULL` o texto de 1 a 600 caracteres.
 - Historial de visitas con cuatro valoraciones y hasta cinco fotos privadas.
 - Recomendaciones determinísticas con atribución y persistencia mínima.
+- Recomendaciones paginadas localmente de a cuatro, sin nuevas llamadas al
+  proveedor al cambiar de página.
 - Interfaz responsive con foco visible, reducción de movimiento y modo degradado.
 - Páginas locales de Términos y Privacidad.
 
@@ -143,8 +147,11 @@ uv run python -m backend.migrations restore \
 `.before-restore` antes de reemplazar el destino. SQLite y `data/uploads/` deben
 respaldarse y recuperarse como una unidad coherente.
 
-La auditoría V3 verificó este procedimiento sólo con bases temporales. No afirma
-que la base real haya sido migrada, respaldada, restaurada ni verificada.
+La migración real V3→V4 se ejecutó posteriormente bajo autorizaciones separadas,
+con el servidor detenido y después de validar el backup previo conservado en
+`data/backups/coffee-atlas-v3-pre-v4-20261018-000900.db`. La auditoría final de
+sólo lectura confirmó V4, `cafes.description` nullable, integridad correcta y
+cero violaciones de claves foráneas. No se ejecutó un restore.
 
 ## Pruebas
 
@@ -154,6 +161,10 @@ uv run --offline python -m compileall -q backend
 
 git diff --check
 ```
+
+La suite final contiene **118 tests aprobados**; los 12 tests específicos de
+V3.6 también pasan. La única advertencia conocida es la deprecación de
+`authlib.jose` detallada más abajo.
 
 Los tests bloquean la red y usan SQLite, uploads, identidades y Places
 temporales o falsos. La evidencia final está en
@@ -232,6 +243,12 @@ teclado. Los POI nativos son sólo complementarios. La grilla se verificó sin
 overflow a 320, 768 y 1440 px; no se usa `overflow-x: hidden` para ocultar
 defectos.
 
+La estructura autenticada definitiva es **Descubrir**, **Mis cafeterías** —con
+sus filtros incluidos—, **Mapa** y **Dashboard**. El gráfico omite etiquetas de
+cero sobre los meses, usa ticks enteros únicos y reserva el desplazamiento
+horizontal para pantallas estrechas. Las recomendaciones muestran cuatro
+resultados por página mediante paginación local accesible.
+
 ## Skills UX locales
 
 - **UI/UX Pro Max** se usa sólo con sus datos y scripts locales previamente
@@ -261,7 +278,15 @@ del proyecto.
 
 ## Evidencia y estado de la base real
 
-La auditoría final V3 se realizó offline con una base V4, uploads, dos
-identidades, Places y mapa temporales o falsos. No abrió `.env`, no usó Auth0 ni
-Google reales y no operó sobre la base real. Ver
+Los tests y la validación de navegador se realizaron offline con una base V4,
+uploads, identidades, Places y mapa temporales o falsos. No se abrió `.env` ni
+se usaron Auth0 o Google reales.
+
+La base real fue migrada de V3 a V4 y verificada en un checkpoint independiente.
+La auditoría final posterior se abrió sólo con SQLite read-only/query-only: el
+archivo conservó `94208` bytes, integridad correcta, cero violaciones de claves
+foráneas y conteos `10/8/4` para cafeterías, visitas y fotografías. Respecto de
+la huella inmediatamente posterior a la migración existe una cafetería adicional
+y cambió la huella del archivo; la evidencia no permite atribuir la causa, por
+lo que se registra como **causa no demostrable**. Ver
 [`docs/verification-v3.md`](docs/verification-v3.md).

@@ -56,6 +56,11 @@ Debe incluir:
 - diseño usable a 320, 768 y 1440 px;
 - semántica accesible y una representación que no dependa sólo del color.
 
+El ajuste final omite las etiquetas visuales de los meses con valor cero,
+mantiene el cero como referencia del eje, genera ticks enteros únicos y evita el
+scroll del gráfico en escritorio. En móvil permite desplazamiento localizado y
+señalado. La tabla continúa siendo la referencia equivalente completa.
+
 La tabla conserva todos los valores aunque el estado esté vacío o una etiqueta
 visual deba abreviarse por falta de espacio.
 
@@ -231,6 +236,18 @@ ajuste.
 
 No se usa `overflow-x: hidden` para ocultar defectos responsive.
 
+La composición final después de la portada sigue este orden de DOM y navegación:
+
+1. **Descubrir**, con perfil y recomendaciones;
+2. **Mis cafeterías**, con el formulario único de filtros antes de la grilla;
+3. **Mapa**;
+4. **Dashboard** completo.
+
+Las recomendaciones se paginan en el navegador sobre el resultado ya recibido,
+con cuatro elementos por página, controles Anterior/Siguiente, indicador y
+anuncio accesible. Cambiar de página no repite una consulta al proveedor ni
+modifica el contrato API.
+
 ## 11. Seguridad, privacidad y degradación
 
 - Toda entidad personal continúa filtrada por `owner_id`.
@@ -260,3 +277,5 @@ No se usa `overflow-x: hidden` para ocultar defectos responsive.
 - Suite, compilación, navegador y auditoría de preentrega verdes.
 - Ninguna operación sobre base o proveedores reales sin su checkpoint y
   autorización específicos.
+- Orden final, filtros integrados, gráfico ajustado y paginación local de V3.6
+  verificados a 320, 768 y 1440 px, sin overflow ni errores de consola.

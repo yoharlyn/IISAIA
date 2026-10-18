@@ -19,8 +19,8 @@ por completo al finalizar.
 
 - `Tab` enfoca **Saltar al contenido**; `Enter` mueve foco a `main`.
 - Marca, sesión y acciones se distinguen sin competir en móvil.
-- Las anclas Dashboard, Explorar, Mapa, Descubrir y Colección llegan a secciones
-  con `scroll-margin` y headings coherentes.
+- Las anclas Descubrir, Mis cafeterías, Mapa y Dashboard siguen ese mismo orden
+  en menú y DOM, con `scroll-margin`, foco programático y headings coherentes.
 - La portada continúa reconocible y el hero no desplaza el contenido esencial.
 - Footer, Términos y Privacidad son alcanzables con teclado.
 
@@ -29,7 +29,9 @@ por completo al finalizar.
 - Existe un solo **Dashboard personal**.
 - Los KPI muestran visitas, visitadas, pendientes y favoritas.
 - El gráfico presenta doce meses, eje cuantitativo entero, líneas guía, valores,
-  leyenda y resumen textual.
+  contexto y resumen textual.
+- Los ceros no se repiten sobre los meses; el eje conserva su referencia cero y
+  los ticks enteros son únicos.
 - La tabla equivalente coincide mes por mes y conserva el acumulado.
 - El contenedor local permite desplazar gráfico o tabla en 320 px sin producir
   overflow del documento.
@@ -37,6 +39,8 @@ por completo al finalizar.
 
 ## Barrios y filtros
 
+- El panel de búsqueda y filtros forma parte de **Mis cafeterías** y aparece una
+  sola vez antes de la grilla.
 - **Todos los barrios** es la selección inicial.
 - El grupo **Barrios oficiales** contiene exactamente 48 opciones únicas y
   ordenadas con el criterio español de la aplicación.
@@ -62,6 +66,12 @@ por completo al finalizar.
 
 ## Recomendaciones, colección y visitas
 
+- La lista muestra cuatro recomendaciones por página, con Anterior, Siguiente e
+  indicador Página X de Y.
+- Los casos 0, 1, 4, 5 y 19 conservan todos los resultados; una nueva búsqueda
+  reinicia en página 1 y cambiar de página no consulta nuevamente al proveedor.
+- Los límites deshabilitan el botón correspondiente, mantienen foco útil y
+  anuncian la página mediante `aria-live`.
 - La recomendación falsa separa datos Google, cálculo personal y datos a guardar.
 - La dirección preparada aparece antes de confirmar.
 - El alta final sin descripción muestra el fallback **Sin descripción.**
@@ -118,7 +128,7 @@ ocultarlo. Las filas incompletas no deben crear grandes vacíos.
 - Contenido legal sustantivo intacto.
 - Teclado, foco, contraste y ausencia de overflow a 320 y 1440 px.
 
-## Evidencia del 17 de octubre de 2026
+## Evidencia final aprobada el 18 de octubre de 2026
 
 - 320 px: `clientWidth=320`, `scrollWidth=320`, KPI `144px 144px`, una columna,
   mapa apilado, diálogo de visitas de `282px` dentro del viewport.
@@ -141,6 +151,8 @@ ocultarlo. Las filas incompletas no deben crear grandes vacíos.
   overflow.
 - Términos y Privacidad: headings correctos y sin overflow a 320 px.
 - Consola: cero errores y cero warnings de la aplicación en las capturas finales.
+- La usuaria aprobó visualmente el orden, los filtros integrados, el gráfico y la
+  paginación de V3.6.
 
 Las interacciones POI, cancelación y retorno de foco son evidencia manual de
 navegador. No existen tests E2E persistentes ni una dependencia Node para ellas;
