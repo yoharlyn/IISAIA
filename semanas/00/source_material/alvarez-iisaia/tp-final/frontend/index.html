@@ -42,11 +42,10 @@
       </div>
       <nav class="section-nav" aria-label="Secciones del atlas">
         <div class="section-nav-inner">
-          <a href="#dashboard">Dashboard</a>
-          <a href="#explorar">Explorar</a>
-          <a href="#mapa">Mapa</a>
           <a href="#descubrir">Descubrir</a>
-          <a href="#coleccion">Colección</a>
+          <a href="#coleccion">Mis cafeterías</a>
+          <a href="#mapa">Mapa</a>
+          <a href="#dashboard">Dashboard</a>
         </div>
       </nav>
     </header>
@@ -58,43 +57,73 @@
         <p>Guardá los lugares que querés conocer y recordá los que ya forman parte de tu recorrido.</p>
       </section>
 
-      <section id="dashboard" class="dashboard-section anchored-section" aria-labelledby="dashboard-title">
+      <div id="descubrir" class="discovery-layout anchored-section" tabindex="-1">
+        <section class="profile-section" aria-labelledby="profile-title">
+          <div class="section-heading"><div><p class="eyebrow">Perfil</p><h2 id="profile-title">Tu punto de partida</h2></div></div>
+          <form id="profile-form" class="profile-form">
+            <div class="field"><label for="profile-display-name">Nombre visible</label><input id="profile-display-name" required maxlength="100"></div>
+            <div class="field"><span id="home-autocomplete-label" class="field-label">Domicilio en CABA</span><div id="home-autocomplete" aria-labelledby="home-autocomplete-label"></div><small id="home-address-selection">No configuraste un domicilio.</small></div>
+            <button id="save-profile" class="button button-primary" type="submit">Guardar perfil</button>
+            <p id="profile-status" class="status-message" role="status" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <section class="recommendations-section" aria-labelledby="recommendations-title">
+          <div class="section-heading"><div><p class="eyebrow">Descubrir</p><h2 id="recommendations-title">Recomendaciones cercanas</h2></div></div>
+          <form id="recommendations-form" class="recommendations-form">
+            <fieldset><legend>Origen</legend><label><input type="radio" name="origin" value="current" checked> Ubicación actual</label><label><input type="radio" name="origin" value="home"> Domicilio</label></fieldset>
+            <div class="field"><label for="recommendation-radius">Radio</label><select id="recommendation-radius" name="radius_km"><option value="1">1 km</option><option value="3" selected>3 km</option><option value="5">5 km</option></select></div>
+            <button class="button button-primary" type="submit">Buscar recomendaciones</button>
+          </form>
+          <p id="recommendations-status" class="status-message" role="status" aria-live="polite">La búsqueda se ejecuta sólo cuando la solicitás.</p>
+          <div id="recommendations-list" class="recommendations-results"></div>
+          <p class="google-attribution">Los nombres, direcciones, ratings, reseñas, estados comerciales, aperturas y enlaces mostrados en los resultados actuales provienen de Google Maps.</p>
+        </section>
+      </div>
+
+      <section id="coleccion" class="atlas-section anchored-section" aria-labelledby="atlas-title" tabindex="-1">
         <div class="section-heading">
-          <div><p class="eyebrow">Tu recorrido</p><h2 id="dashboard-title">Dashboard personal</h2></div>
+          <div><p class="eyebrow">Colección</p><h2 id="atlas-title">Mis cafeterías</h2></div>
+          <p id="result-count" class="result-count" aria-live="polite"></p>
         </div>
-        <p id="dashboard-status" class="status-message" role="status" aria-live="polite">Cargando dashboard…</p>
-        <div id="dashboard-content" aria-busy="true"></div>
+        <section class="filters-panel" aria-labelledby="filters-title">
+          <div class="section-heading">
+            <div><p class="eyebrow">Buscar y filtrar</p><h3 id="filters-title">Encontrá tu próxima parada</h3></div>
+          </div>
+          <form id="filter-form" class="filters" role="search">
+            <div class="field field-wide">
+              <label for="search">Buscar por nombre</label>
+              <input id="search" name="q" type="search" maxlength="100" placeholder="Ej. Bruma Café">
+            </div>
+            <div class="field">
+              <label for="neighborhood-filter">Barrio</label>
+              <select id="neighborhood-filter" name="neighborhood" aria-describedby="neighborhood-help"><option value="">Todos los barrios</option></select>
+              <small id="neighborhood-help" class="sr-only">Barrios oficiales y valores históricos disponibles.</small>
+            </div>
+            <div class="field">
+              <label for="status-filter">Estado</label>
+              <select id="status-filter" name="visit_status">
+                <option value="">Todos los estados</option><option value="VISITED">Visitadas</option><option value="PENDING">Pendientes</option>
+              </select>
+            </div>
+            <label class="check-field" for="favorite-filter"><input id="favorite-filter" name="is_favorite" type="checkbox">Sólo favoritas</label>
+            <div class="filter-actions">
+              <button class="button button-primary" type="submit">Aplicar filtros</button>
+              <button class="button button-quiet" id="clear-filters" type="button">Limpiar</button>
+            </div>
+          </form>
+        </section>
+        <p id="list-status" class="status-message" role="status" aria-live="polite">Cargando cafeterías…</p>
+        <button id="retry-load" class="button button-secondary" type="button" hidden>Reintentar</button>
+        <div id="cafe-grid" class="cafe-grid" aria-busy="true"></div>
+        <div id="empty-state" class="empty-state" hidden>
+          <h3 id="empty-title">Todavía no registraste cafeterías</h3>
+          <p id="empty-description">Agregá la primera parada de tu recorrido.</p>
+          <button id="empty-action" class="button button-primary" type="button">Agregar cafetería</button>
+        </div>
       </section>
 
-      <section id="explorar" class="filters-panel anchored-section" aria-labelledby="filters-title">
-        <div class="section-heading">
-          <div><p class="eyebrow">Explorar</p><h2 id="filters-title">Encontrá tu próxima parada</h2></div>
-        </div>
-        <form id="filter-form" class="filters" role="search">
-          <div class="field field-wide">
-            <label for="search">Buscar por nombre</label>
-            <input id="search" name="q" type="search" maxlength="100" placeholder="Ej. Bruma Café">
-          </div>
-          <div class="field">
-            <label for="neighborhood-filter">Barrio</label>
-            <select id="neighborhood-filter" name="neighborhood" aria-describedby="neighborhood-help"><option value="">Todos los barrios</option></select>
-            <small id="neighborhood-help">Incluye los 48 barrios oficiales y, si existen, tus valores históricos.</small>
-          </div>
-          <div class="field">
-            <label for="status-filter">Estado</label>
-            <select id="status-filter" name="visit_status">
-              <option value="">Todos los estados</option><option value="VISITED">Visitadas</option><option value="PENDING">Pendientes</option>
-            </select>
-          </div>
-          <label class="check-field" for="favorite-filter"><input id="favorite-filter" name="is_favorite" type="checkbox">Sólo favoritas</label>
-          <div class="filter-actions">
-            <button class="button button-primary" type="submit">Aplicar filtros</button>
-            <button class="button button-quiet" id="clear-filters" type="button">Limpiar</button>
-          </div>
-        </form>
-      </section>
-
-      <section id="mapa" class="map-section anchored-section" aria-labelledby="map-title">
+      <section id="mapa" class="map-section anchored-section" aria-labelledby="map-title" tabindex="-1">
         <div class="section-heading">
           <div><p class="eyebrow">Mapa</p><h2 id="map-title">Tu atlas en CABA</h2></div>
           <button id="locate-user" class="button button-quiet" type="button">Usar mi ubicación en esta vista</button>
@@ -120,49 +149,16 @@
           </div>
           <div class="map-canvas">
             <div id="atlas-map" class="atlas-map" data-map-state="loading" aria-label="Mapa de cafeterías"></div>
-            <p class="map-note">También podés seleccionar un punto de interés del mapa si Google informa un Place ID. La ubicación actual permanece sólo en memoria. Distancias en línea recta, no tiempos de viaje.</p>
           </div>
         </div>
       </section>
 
-      <div id="descubrir" class="discovery-layout anchored-section">
-        <section class="profile-section" aria-labelledby="profile-title">
-          <div class="section-heading"><div><p class="eyebrow">Perfil</p><h2 id="profile-title">Tu punto de partida</h2></div></div>
-          <form id="profile-form" class="profile-form">
-            <div class="field"><label for="profile-display-name">Nombre visible</label><input id="profile-display-name" required maxlength="100"></div>
-            <div class="field"><span id="home-autocomplete-label" class="field-label">Domicilio en CABA</span><div id="home-autocomplete" aria-labelledby="home-autocomplete-label"></div><small id="home-address-selection">No configuraste un domicilio.</small></div>
-            <button id="save-profile" class="button button-primary" type="submit">Guardar perfil</button>
-            <p id="profile-status" class="status-message" role="status" aria-live="polite"></p>
-          </form>
-        </section>
-
-        <section class="recommendations-section" aria-labelledby="recommendations-title">
-          <div class="section-heading"><div><p class="eyebrow">Descubrir</p><h2 id="recommendations-title">Recomendaciones cercanas</h2></div></div>
-          <p class="recommendations-disclosure">Cada resultado separa los datos actuales de Google Maps, el cálculo determinístico realizado para tu atlas y la información que se guardaría localmente.</p>
-          <form id="recommendations-form" class="recommendations-form">
-            <fieldset><legend>Origen</legend><label><input type="radio" name="origin" value="current" checked> Ubicación actual</label><label><input type="radio" name="origin" value="home"> Domicilio</label></fieldset>
-            <div class="field"><label for="recommendation-radius">Radio</label><select id="recommendation-radius" name="radius_km"><option value="1">1 km</option><option value="3" selected>3 km</option><option value="5">5 km</option></select></div>
-            <button class="button button-primary" type="submit">Buscar recomendaciones</button>
-          </form>
-          <p id="recommendations-status" class="status-message" role="status" aria-live="polite">La búsqueda se ejecuta sólo cuando la solicitás.</p>
-          <div id="recommendations-list" class="recommendations-grid"></div>
-          <p class="google-attribution">Los nombres, direcciones, ratings, reseñas, estados comerciales, aperturas y enlaces mostrados en los resultados actuales provienen de Google Maps.</p>
-        </section>
-      </div>
-
-      <section id="coleccion" class="atlas-section anchored-section" aria-labelledby="atlas-title">
+      <section id="dashboard" class="dashboard-section anchored-section" aria-labelledby="dashboard-title" tabindex="-1">
         <div class="section-heading">
-          <div><p class="eyebrow">Colección</p><h2 id="atlas-title">Mis cafeterías</h2></div>
-          <p id="result-count" class="result-count" aria-live="polite"></p>
+          <div><p class="eyebrow">Tu recorrido</p><h2 id="dashboard-title">Dashboard personal</h2></div>
         </div>
-        <p id="list-status" class="status-message" role="status" aria-live="polite">Cargando cafeterías…</p>
-        <button id="retry-load" class="button button-secondary" type="button" hidden>Reintentar</button>
-        <div id="cafe-grid" class="cafe-grid" aria-busy="true"></div>
-        <div id="empty-state" class="empty-state" hidden>
-          <h3 id="empty-title">Todavía no registraste cafeterías</h3>
-          <p id="empty-description">Agregá la primera parada de tu recorrido.</p>
-          <button id="empty-action" class="button button-primary" type="button">Agregar cafetería</button>
-        </div>
+        <p id="dashboard-status" class="status-message" role="status" aria-live="polite">Cargando dashboard…</p>
+        <div id="dashboard-content" aria-busy="true"></div>
       </section>
     </main>
 

@@ -122,7 +122,9 @@ def test_frontend_assets_are_served(client):
     assert "prepareCafe" in api_module.text
     assert "Agregar a mis cafeterías" in recommendations_module.text
     assert "provienen de Google Maps" in client.get("/").text
-    assert "el cálculo determinístico" in client.get("/").text
+    assert "Puntaje determinístico" in recommendations_module.text
+    assert "RECOMMENDATIONS_PER_PAGE = 4" in recommendations_module.text
+    assert 'aria-current", "page"' in recommendations_module.text
     assert visits_module.status_code == 200
     assert "uploadVisitPhoto" in visits_module.text
     assert "textContent" in visits_module.text
@@ -140,7 +142,8 @@ def test_frontend_assets_are_served(client):
     assert "chart-month-label" in dashboard_module.text
     assert "chart-value-label" in dashboard_module.text
     assert "chart-summary" in dashboard_module.text
-    assert "chart-legend" in dashboard_module.text
+    assert "integerScale" in dashboard_module.text
+    assert "if (point.count > 0)" in dashboard_module.text
     assert "chart-empty" in dashboard_module.text
     assert "data-month" in dashboard_module.text
     assert "data-count" in dashboard_module.text

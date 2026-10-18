@@ -2,8 +2,8 @@ import { getDashboard } from "./api.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const CHART_WIDTH = 780;
-const CHART_HEIGHT = 340;
-const PLOT = { top: 34, right: 18, bottom: 76, left: 54 };
+const CHART_HEIGHT = 292;
+const PLOT = { top: 34, right: 16, bottom: 58, left: 46 };
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -48,14 +48,15 @@ function summaryCards(summary) {
   });
 }
 
-function integerScale(points) {
+export function integerScale(points) {
   const maximum = Math.max(0, ...points.map((point) => point.count));
+  if (maximum === 0) return { axisMaximum: 1, ticks: [0] };
   const step = maximum <= 4 ? 1 : Math.ceil(maximum / 4);
   const axisMaximum = Math.max(1, Math.ceil(maximum / step) * step);
-  const ticks = [];
-  for (let value = 0; value <= axisMaximum; value += step) ticks.push(value);
-  if (ticks.at(-1) !== axisMaximum) ticks.push(axisMaximum);
-  return { axisMaximum, ticks };
+  const ticks = new Set();
+  for (let value = 0; value <= axisMaximum; value += step) ticks.add(value);
+  ticks.add(axisMaximum);
+  return { axisMaximum, ticks: [...ticks].sort((left, right) => left - right) };
 }
 
 function shortMonth(point) {
@@ -96,7 +97,7 @@ function chartSvg(points) {
   const plotHeight = CHART_HEIGHT - PLOT.top - PLOT.bottom;
   const plotBottom = PLOT.top + plotHeight;
   const slotWidth = plotWidth / points.length;
-  const barWidth = Math.min(30, slotWidth * 0.56);
+  const barWidth = Math.min(38, slotWidth * 0.68);
   const { axisMaximum, ticks } = integerScale(points);
 
   ticks.forEach((tick) => {
@@ -137,16 +138,19 @@ function chartSvg(points) {
     const barTitle = svgElement("title", "", `${point.label}: ${point.count} visitas`);
     bar.append(barTitle);
 
-    const value = svgElement("text", "chart-value-label", String(point.count));
-    value.setAttribute("x", String(x + barWidth / 2));
-    value.setAttribute("y", String(Math.max(PLOT.top + 12, y - 8)));
-    value.setAttribute("text-anchor", "middle");
-
     const month = svgElement("text", "chart-month-label", shortMonth(point));
     month.setAttribute("x", String(x + barWidth / 2));
     month.setAttribute("y", String(plotBottom + 25));
     month.setAttribute("text-anchor", "middle");
-    svg.append(bar, value, month);
+    svg.append(bar);
+    if (point.count > 0) {
+      const value = svgElement("text", "chart-value-label", String(point.count));
+      value.setAttribute("x", String(x + barWidth / 2));
+      value.setAttribute("y", String(Math.max(PLOT.top + 12, y - 8)));
+      value.setAttribute("text-anchor", "middle");
+      svg.append(value);
+    }
+    svg.append(month);
   });
 
   const axisTitle = svgElement("text", "chart-axis-title", "Visitas");
@@ -159,27 +163,23 @@ function chartSvg(points) {
 function monthlyChart(points) {
   const figure = element("figure", "dashboard-figure");
   const heading = element("h3", "", "Visitas durante los últimos 12 meses");
-  const description = element("p", "chart-description", "Las barras muestran visitas registradas por mes; la escala y las líneas horizontales representan cantidades enteras desde cero.");
   const summary = element("p", "chart-summary", chartSummary(points));
   summary.id = "visits-chart-summary";
-  const legend = element("div", "chart-legend");
-  const key = element("span", "chart-key");
-  key.setAttribute("aria-hidden", "true");
-  legend.append(key, element("span", "", "Cada barra representa visitas registradas en un mes; el valor también aparece escrito sobre la barra."));
+  const scrollHint = element("p", "chart-scroll-hint", "Deslizá horizontalmente para recorrer los doce meses.");
   const chartRegion = element("div", "chart-scroll");
   chartRegion.tabIndex = 0;
   chartRegion.setAttribute("role", "region");
-  chartRegion.setAttribute("aria-label", "Gráfico mensual; desplazable horizontalmente en pantallas pequeñas");
+  chartRegion.setAttribute("aria-label", "Gráfico mensual. En pantallas estrechas, desplazá horizontalmente para recorrer los doce meses.");
   chartRegion.append(chartSvg(points));
   if (points.every((point) => point.count === 0)) {
     const empty = element("p", "chart-empty", "Sin visitas en este período. El gráfico conserva los doce meses y una escala de cero a uno.");
-    figure.append(heading, description, summary, empty, legend, chartRegion);
+    figure.append(heading, summary, empty, scrollHint, chartRegion);
   } else {
-    figure.append(heading, description, summary, legend, chartRegion);
+    figure.append(heading, summary, scrollHint, chartRegion);
   }
 
   const table = element("table", "data-table");
-  const caption = element("caption", "", "Detalle mensual de visitas");
+  const caption = element("caption", "sr-only", "Visitas por mes y total acumulado");
   const head = document.createElement("thead");
   const headRow = document.createElement("tr");
   ["Mes", "Visitas", "Acumuladas"].forEach((label) => headRow.append(headerCell(label, "col")));
@@ -203,7 +203,7 @@ function ratingTable(ratings) {
   const section = element("section", "dashboard-panel");
   section.append(element("h3", "", "Promedios personales"));
   const table = element("table", "data-table");
-  table.append(element("caption", "", "Promedio y cantidad de valoraciones por categoría"));
+  table.append(element("caption", "sr-only", "Valoraciones personales por categoría"));
   const head = document.createElement("thead");
   const headRow = document.createElement("tr");
   ["Categoría", "Promedio", "Valoraciones"].forEach((label) => headRow.append(element("th", "", label)));
@@ -228,7 +228,7 @@ function neighborhoodTable(neighborhoods) {
     return section;
   }
   const table = element("table", "data-table");
-  table.append(element("caption", "", "Cantidad de cafeterías guardadas por barrio"));
+  table.append(element("caption", "sr-only", "Cafeterías guardadas por barrio"));
   const body = document.createElement("tbody");
   neighborhoods.forEach((item) => {
     const row = document.createElement("tr");
@@ -287,7 +287,7 @@ export function initializeDashboard() {
     try {
       const dashboard = await getDashboard();
       renderDashboard(container, dashboard);
-      status.textContent = "Dashboard actualizado.";
+      status.textContent = "";
     } catch (error) {
       container.replaceChildren();
       status.textContent = error.message;
