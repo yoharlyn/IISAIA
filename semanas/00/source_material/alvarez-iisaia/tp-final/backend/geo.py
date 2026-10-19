@@ -6,11 +6,11 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 from backend.google_places import AddressComponent, Coordinates
+from backend.neighborhoods import NEIGHBORHOODS_PATH, canonical_neighborhood
 
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 PERIMETER_PATH = DATA_DIR / "caba_perimeter.geojson"
-NEIGHBORHOODS_PATH = DATA_DIR / "caba_neighborhoods.geojson"
 CABA_POLYGON_VERSION = "gcba-2026-07-29"
 LOCATION_TTL = timedelta(days=29)
 
@@ -116,7 +116,7 @@ def neighborhood_for(location: Coordinates) -> str | None:
         if _in_geometry(point, feature.get("geometry", {})):
             properties = feature.get("properties", {})
             name = properties.get("BARRIO")
-            return str(name).title() if name else None
+            return canonical_neighborhood(str(name)) if name else None
     return None
 
 

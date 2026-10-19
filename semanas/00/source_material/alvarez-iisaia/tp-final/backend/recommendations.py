@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 from backend.distance import haversine_km
 from backend.google_places import Coordinates, PlaceCandidate
 from backend.models import Cafe, Visit
+from backend.neighborhoods import display_neighborhood
 
 
 BASE_WEIGHTS = {
@@ -43,7 +44,7 @@ def personal_affinity_by_neighborhood(
         if not values or cafe is None:
             continue
         rated_visits += 1
-        samples[cafe.neighborhood].append(sum(values) / len(values))
+        samples[display_neighborhood(cafe.neighborhood)].append(sum(values) / len(values))
     if rated_visits < 5 or len(samples) < 2:
         return None
     global_values = [value for values in samples.values() for value in values]

@@ -121,12 +121,31 @@ def test_prepare_and_save_use_the_canonical_details_address(client, app):
     )
 
     assert prepare.status_code == 200
-    assert prepare.json()["attribution"] == "Google Maps"
+    assert prepare.json() == {
+        "place_id": "recommendation-1",
+        "formatted_address": "Av. Corrientes 1000, CABA",
+        "neighborhood": "San Nicolás",
+        "attribution": "Google Maps",
+    }
     assert saved.status_code == 201
     with Session(app.state.engine) as db:
         cafe = db.exec(select(Cafe).where(Cafe.place_id == "recommendation-1")).one()
         assert cafe.name == "Nombre local"
         assert cafe.selected_address == "Av. Corrientes 1000, CABA"
+
+
+def test_legacy_recommendation_save_accepts_missing_description(client):
+    response = client.post(
+        "/api/recommendations/recommendation-without-description/save",
+        json={
+            "name": "Sin descripción",
+            "selected_address": "Dirección confirmada",
+        },
+    )
+
+    assert response.status_code == 201
+    cafe = client.get("/api/cafes", params={"q": "Sin descripción"}).json()[0]
+    assert cafe["description"] is None
 
 
 def test_recommendation_radius_is_capped_at_five_km(client):

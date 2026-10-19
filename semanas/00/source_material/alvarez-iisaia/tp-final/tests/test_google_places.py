@@ -27,6 +27,7 @@ def test_details_uses_minimal_field_mask_and_parses_required_fields():
             200,
             json={
                 "id": "place/id",
+                "displayName": {"text": "Café de prueba"},
                 "formattedAddress": "Av. Corrientes 1000, CABA",
                 "addressComponents": [
                     {
@@ -43,6 +44,7 @@ def test_details_uses_minimal_field_mask_and_parses_required_fields():
     result = run(provider.details("place/id"))
 
     assert result.place_id == "place/id"
+    assert result.display_name == "Café de prueba"
     assert result.location == Coordinates(-34.6037, -58.3816)
     assert result.address_components[0].short_text == "CABA"
 

@@ -78,9 +78,51 @@ def test_create_normalizes_strings_and_empty_image(client):
 
     assert response.status_code == 201
     assert response.json()["name"] == "Lumbre Café"
-    assert response.json()["neighborhood"] == "San Nicolas"
+    assert response.json()["neighborhood"] == "San Nicolás"
     assert response.json()["description"] == "Una descripción válida."
     assert response.json()["image_url"] is None
+
+
+def test_create_accepts_optional_description_and_enforces_its_limits(client):
+    omitted = cafe_payload(place_id="description-omitted")
+    omitted.pop("description")
+    responses = [
+        client.post("/api/cafes", json=omitted),
+        client.post(
+            "/api/cafes",
+            json=cafe_payload(place_id="description-null", description=None),
+        ),
+        client.post(
+            "/api/cafes",
+            json=cafe_payload(place_id="description-empty", description=""),
+        ),
+        client.post(
+            "/api/cafes",
+            json=cafe_payload(place_id="description-spaces", description="   "),
+        ),
+        client.post(
+            "/api/cafes",
+            json=cafe_payload(place_id="description-one", description=" x "),
+        ),
+        client.post(
+            "/api/cafes",
+            json=cafe_payload(place_id="description-600", description="x" * 600),
+        ),
+    ]
+
+    assert [response.status_code for response in responses] == [201] * 6
+    assert [response.json()["description"] for response in responses[:4]] == [
+        None,
+        None,
+        None,
+        None,
+    ]
+    assert responses[4].json()["description"] == "x"
+    assert responses[5].json()["description"] == "x" * 600
+    assert client.post(
+        "/api/cafes",
+        json=cafe_payload(place_id="description-601", description="x" * 601),
+    ).status_code == 422
 
 
 def test_create_rejects_invalid_payloads(client):
@@ -127,6 +169,27 @@ def test_patch_accepts_null_only_for_image_and_ratings(client):
     assert valid.json()["image_url"] is None
     assert valid.json()["coffee_rating"] is None
     assert invalid.status_code == 422
+
+
+def test_patch_can_add_change_and_remove_description(client):
+    cafe_id = client.post(
+        "/api/cafes",
+        json=cafe_payload(place_id="description-patch", description=None),
+    ).json()["id"]
+
+    added = client.patch(
+        f"/api/cafes/{cafe_id}", json={"description": "  Primera nota.  "}
+    )
+    changed = client.patch(
+        f"/api/cafes/{cafe_id}", json={"description": "Nota actualizada."}
+    )
+    removed = client.patch(
+        f"/api/cafes/{cafe_id}", json={"description": "   "}
+    )
+
+    assert added.json()["description"] == "Primera nota."
+    assert changed.json()["description"] == "Nota actualizada."
+    assert removed.json()["description"] is None
 
 
 def test_patch_rejects_empty_body_and_unknown_fields(client):

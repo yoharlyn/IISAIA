@@ -7,7 +7,7 @@ import httpx
 
 
 PLACES_BASE_URL = "https://places.googleapis.com/v1"
-DETAILS_FIELD_MASK = "id,formattedAddress,addressComponents,location"
+DETAILS_FIELD_MASK = "id,displayName,formattedAddress,addressComponents,location"
 NEARBY_FIELD_MASK = ",".join(
     (
         "places.id",
@@ -57,6 +57,7 @@ class AddressComponent:
 @dataclass(frozen=True, slots=True)
 class PlaceDetails:
     place_id: str
+    display_name: str
     formatted_address: str
     address_components: tuple[AddressComponent, ...]
     location: Coordinates
@@ -92,7 +93,11 @@ def _coordinates(payload: object) -> Coordinates:
     longitude = payload.get("longitude")
     if not isinstance(latitude, (int, float)) or not isinstance(longitude, (int, float)):
         raise PlacesInvalidResponse("location")
-    return Coordinates(float(latitude), float(longitude))
+    latitude = float(latitude)
+    longitude = float(longitude)
+    if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
+        raise PlacesInvalidResponse("location")
+    return Coordinates(latitude, longitude)
 
 
 def _components(payload: object) -> tuple[AddressComponent, ...]:
@@ -175,11 +180,25 @@ class GooglePlacesProvider:
             headers=self._headers(DETAILS_FIELD_MASK),
         )
         returned_id = payload.get("id")
+        display_name = payload.get("displayName")
         formatted_address = payload.get("formattedAddress")
-        if not isinstance(returned_id, str) or not isinstance(formatted_address, str):
+        canonical_name = (
+            display_name.get("text")
+            if isinstance(display_name, dict)
+            else None
+        )
+        if (
+            not isinstance(returned_id, str)
+            or not returned_id.strip()
+            or not isinstance(canonical_name, str)
+            or not canonical_name.strip()
+            or not isinstance(formatted_address, str)
+            or not formatted_address.strip()
+        ):
             raise PlacesInvalidResponse("details")
         return PlaceDetails(
             place_id=returned_id,
+            display_name=canonical_name,
             formatted_address=formatted_address,
             address_components=_components(payload.get("addressComponents")),
             location=_coordinates(payload.get("location")),

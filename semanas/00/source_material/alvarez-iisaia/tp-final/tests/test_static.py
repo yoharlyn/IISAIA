@@ -11,6 +11,8 @@ def test_home_is_served_by_fastapi(client):
     assert '<dialog id="visit-dialog"' in response.text
     assert 'id="visit-status"' in response.text
     assert 'aria-live="polite"' in response.text
+    assert 'class="stats-grid"' not in response.text
+    assert 'id="stat-total"' not in response.text
 
 
 def test_only_the_configured_host_is_accepted(client):
@@ -97,6 +99,8 @@ def test_frontend_assets_are_served(client):
     assert "localStorage" not in map_module.text
     assert "sessionStorage" not in map_module.text
     assert 'id="atlas-map"' in client.get("/").text
+    assert 'id="map-place-autocomplete"' in client.get("/").text
+    assert "alternativa completa para usar el mapa con teclado" in client.get("/").text
     assert places_module.status_code == 200
     assert "PlaceAutocompleteElement" in places_module.text
     assert "gmp-select" in places_module.text
@@ -110,8 +114,17 @@ def test_frontend_assets_are_served(client):
     assert "innerHTML" not in recommendations_module.text
     assert 'id="home-autocomplete"' in client.get("/").text
     assert 'id="cafe-autocomplete"' in client.get("/").text
+    assert 'id="cafe-prepared-location"' in client.get("/").text
+    assert 'id="cafe-description" name="description" maxlength="600"' in client.get("/").text
+    assert 'name="description" required' not in client.get("/").text
+    assert "Descripción <span>(opcional)</span>" in client.get("/").text
+    assert 'cafe.description || "Sin descripción."' in ui_module.text
+    assert "prepareCafe" in api_module.text
+    assert "Agregar a mis cafeterías" in recommendations_module.text
     assert "provienen de Google Maps" in client.get("/").text
-    assert "el cálculo determinístico" in client.get("/").text
+    assert "Puntaje determinístico" in recommendations_module.text
+    assert "RECOMMENDATIONS_PER_PAGE = 4" in recommendations_module.text
+    assert 'aria-current", "page"' in recommendations_module.text
     assert visits_module.status_code == 200
     assert "uploadVisitPhoto" in visits_module.text
     assert "textContent" in visits_module.text
@@ -125,8 +138,23 @@ def test_frontend_assets_are_served(client):
     assert "createElementNS" in dashboard_module.text
     assert 'element("table"' in dashboard_module.text
     assert 'element("caption"' in dashboard_module.text
+    assert "chart-grid-line" in dashboard_module.text
+    assert "chart-month-label" in dashboard_module.text
+    assert "chart-value-label" in dashboard_module.text
+    assert "chart-summary" in dashboard_module.text
+    assert "integerScale" in dashboard_module.text
+    assert "if (point.count > 0)" in dashboard_module.text
+    assert "chart-empty" in dashboard_module.text
+    assert "data-month" in dashboard_module.text
+    assert "data-count" in dashboard_module.text
     assert "innerHTML" not in dashboard_module.text
     assert "getDashboard" in api_module.text
+    assert "getNeighborhoods" in api_module.text
+    assert 'neighborhoodGroup("Barrios oficiales"' in ui_module.text
+    assert 'neighborhoodGroup("Valores históricos"' in ui_module.text
+    assert "getStats" not in api_module.text
+    assert "getStats" not in app_module.text
+    assert "renderStats" not in ui_module.text
     assert 'id="dashboard-content"' in client.get("/").text
     assert 'aria-busy="true"' in client.get("/").text
 

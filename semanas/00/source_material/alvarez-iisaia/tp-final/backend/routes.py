@@ -7,11 +7,25 @@ from sqlmodel import Session, func, select
 from backend.auth_routes import AuthContext, require_auth, require_csrf
 from backend.db import get_session
 from backend.models import Cafe, Visit, VisitPhoto, VisitStatus, utc_now
-from backend.schemas import CafeCreate, CafeRead, CafeSearch, CafeSearchRead, CafeUpdate, StatsRead
+from backend.schemas import (
+    CafeCreate,
+    CafeRead,
+    CafeSearch,
+    CafeSearchRead,
+    CafeUpdate,
+    NeighborhoodCatalogRead,
+    StatsRead,
+)
 from backend.locations import location_values, places_provider, verify_place_selection
 from backend.distance import haversine_km
 from backend.geo import location_is_fresh
 from backend.google_places import Coordinates
+from backend.neighborhoods import (
+    display_neighborhood,
+    historical_neighborhoods,
+    neighborhood_matches,
+    official_neighborhoods,
+)
 from backend.uploads import purge_quarantined, quarantine_photos, restore_quarantined
 
 router = APIRouter(prefix="/api")
@@ -57,7 +71,7 @@ def serialize_cafe(session: Session, cafe: Cafe) -> CafeRead:
     return CafeRead(
         id=cafe.id,
         name=cafe.name,
-        neighborhood=cafe.neighborhood,
+        neighborhood=display_neighborhood(cafe.neighborhood),
         place_id=cafe.place_id,
         selected_address=cafe.selected_address,
         latitude=cafe.latitude if location_fresh else None,
@@ -100,10 +114,13 @@ def list_cafes(
         normalized = neighborhood.strip()
         if not normalized:
             raise HTTPException(status_code=422, detail="El barrio no puede estar vacío.")
-        statement = statement.where(func.lower(Cafe.neighborhood) == normalized.lower())
     if is_favorite is not None:
         statement = statement.where(Cafe.is_favorite == is_favorite)
     cafes = session.exec(statement.order_by(Cafe.updated_at.desc(), Cafe.id.desc())).all()
+    if neighborhood is not None:
+        cafes = [
+            cafe for cafe in cafes if neighborhood_matches(cafe.neighborhood, normalized)
+        ]
     result = [serialize_cafe(session, cafe) for cafe in cafes]
     if visit_status is not None:
         result = [item for item in result if item.visit_status == visit_status]
@@ -127,7 +144,7 @@ def search_cafes(
         serialized = [
             item
             for item in serialized
-            if item.neighborhood.casefold() == payload.neighborhood.casefold()
+            if neighborhood_matches(item.neighborhood, payload.neighborhood)
         ]
     if payload.visit_status:
         serialized = [item for item in serialized if item.visit_status == payload.visit_status]
@@ -164,6 +181,17 @@ def search_cafes(
     return result
 
 
+@router.get("/neighborhoods", response_model=NeighborhoodCatalogRead)
+def get_neighborhoods(session: SessionDep, auth: AuthDep):
+    values = session.exec(
+        select(Cafe.neighborhood).where(Cafe.owner_id == auth.user.id)
+    ).all()
+    return NeighborhoodCatalogRead(
+        official=list(official_neighborhoods()),
+        historical=list(historical_neighborhoods(values)),
+    )
+
+
 @router.post("/cafes", response_model=CafeRead, status_code=status.HTTP_201_CREATED)
 async def create_cafe(
     payload: CafeCreate, request: Request, session: SessionDep, auth: CsrfDep
@@ -175,8 +203,9 @@ async def create_cafe(
     )
     values = payload.model_dump(
         exclude=set(RATING_FIELDS)
-        | {"visit_status", "neighborhood", "place_id", "selected_address"}
+        | {"name", "visit_status", "neighborhood", "place_id", "selected_address"}
     )
+    values["name"] = verified.details.display_name
     values.update(location_values(verified))
     values["location_status"] = "VERIFIED"
     cafe = Cafe(owner_id=auth.user.id, **values)
@@ -221,6 +250,8 @@ async def update_cafe(
             selected_address=supplied.pop("selected_address"),
         )
         cafe.sqlmodel_update(location_values(verified))
+        supplied.pop("name", None)
+        cafe.name = verified.details.display_name
         cafe.location_status = "VERIFIED"
     cafe.sqlmodel_update(
         {

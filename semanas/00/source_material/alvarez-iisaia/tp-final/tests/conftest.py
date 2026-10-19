@@ -20,6 +20,7 @@ class FakePlacesProvider:
         self.details_calls.append(place_id)
         return PlaceDetails(
             place_id=place_id,
+            display_name="Lumbre Café",
             formatted_address=TEST_ADDRESS,
             address_components=(
                 AddressComponent(

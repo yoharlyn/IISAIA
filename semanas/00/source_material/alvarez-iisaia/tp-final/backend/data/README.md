@@ -10,10 +10,11 @@ Ciudad Autónoma de Buenos Aires, bajo licencia `CC-BY-2.5-AR`:
   (GeoJSON)”. Fuente:
   <https://cdn.buenosaires.gob.ar/datosabiertos/datasets/barrios/barrios.geojson>
 
-Descargados el 14 de octubre de 2026. Los catálogos oficiales informaban fecha
-de actualización 29 de julio de 2026 y frecuencia trimestral. La constante
-`CABA_POLYGON_VERSION` identifica esa revisión para la evidencia local de
-validación.
+Incorporados al repositorio el 14 de octubre de 2026. La versión local del
+catálogo de barrios se identifica además por el SHA-256
+`272119879eaa382a99008273e67b033d2c9f01241db823088e04cfe9a720a69b`.
+La constante `CABA_POLYGON_VERSION` conserva el identificador de revisión usado
+por la evidencia local de validación.
 
 Los archivos se conservan sin simplificar. El perímetro decide pertenencia a
 CABA y los polígonos de barrios permiten derivar el barrio sin persistir los

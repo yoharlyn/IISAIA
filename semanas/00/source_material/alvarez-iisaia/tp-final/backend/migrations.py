@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -7,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class MigrationError(RuntimeError):
@@ -39,7 +40,7 @@ def integrity_check(path: Path) -> str:
 
 def inspect_database(path: Path) -> DatabaseStatus:
     if not path.exists() or path.stat().st_size == 0:
-        return DatabaseStatus("empty", "Base inexistente o vacía; se puede crear V2.")
+        return DatabaseStatus("empty", "Base inexistente o vacía; se puede crear V4.")
     integrity_check(path)
     with _connect(path) as connection:
         tables = {
@@ -48,23 +49,28 @@ def inspect_database(path: Path) -> DatabaseStatus:
                 "SELECT name FROM sqlite_master WHERE type='table'"
             )
         }
-        if "schema_migrations" in tables:
-            row = connection.execute(
-                "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"
-            ).fetchone()
-            if row and row[0] == SCHEMA_VERSION:
-                return DatabaseStatus("v2", "La base ya está actualizada a V2.")
         if "cafes" in tables:
-            columns = {
-                row[1] for row in connection.execute("PRAGMA table_info(cafes)")
-            }
+            column_rows = list(connection.execute("PRAGMA table_info(cafes)"))
+            columns = {row[1] for row in column_rows}
             if "owner_id" in columns:
                 if "latitude" not in columns:
                     return DatabaseStatus(
                         "v2_geo_pending",
                         "La base V2 requiere la ampliación geográfica manual.",
                     )
-                return DatabaseStatus("v2", "La base usa el esquema V2.")
+                description = next(
+                    (row for row in column_rows if row[1] == "description"), None
+                )
+                if description is None:
+                    return DatabaseStatus(
+                        "unknown", "La tabla cafes no contiene description."
+                    )
+                if description[3]:
+                    return DatabaseStatus(
+                        "v3_pending",
+                        "La base V3 requiere la migración manual al esquema V4.",
+                    )
+                return DatabaseStatus("v4", "La base ya está actualizada a V4.")
             if {"visit_status", "coffee_rating"}.issubset(columns):
                 return DatabaseStatus("v1", "La base usa el esquema V1 y requiere migración manual.")
         return DatabaseStatus("unknown", "El esquema SQLite no es reconocido.")
@@ -118,7 +124,7 @@ def _create_v2_tables(connection: sqlite3.Connection) -> None:
             owner_id INTEGER NOT NULL REFERENCES users(id),
             name VARCHAR(100) NOT NULL,
             neighborhood VARCHAR(80) NOT NULL,
-            description VARCHAR(600) NOT NULL,
+            description VARCHAR(600),
             image_url VARCHAR(2048),
             is_favorite BOOLEAN NOT NULL DEFAULT 0,
             place_id VARCHAR(255),
@@ -133,6 +139,8 @@ def _create_v2_tables(connection: sqlite3.Connection) -> None:
             location_status VARCHAR(20) NOT NULL DEFAULT 'NEEDS_LOCATION',
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
+            CONSTRAINT ck_cafes_description
+              CHECK (description IS NULL OR length(trim(description)) BETWEEN 1 AND 600),
             UNIQUE(owner_id, place_id)
         );
         CREATE TABLE IF NOT EXISTS visits (
@@ -219,6 +227,63 @@ def _upgrade_geo_schema(connection: sqlite3.Connection) -> None:
     )
 
 
+def _upgrade_description_schema(
+    connection: sqlite3.Connection, *, fail_after_cafes: bool = False
+) -> None:
+    row = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='cafes'"
+    ).fetchone()
+    if row is None or not row[0]:
+        raise MigrationError("No se encontró el DDL de la tabla cafes.")
+    source_sql = row[0]
+    nullable_sql, changed = re.subn(
+        r"(\bdescription\s+(?:VARCHAR\s*\(\s*600\s*\)|TEXT))\s+NOT\s+NULL\b",
+        r"\1",
+        source_sql,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    if changed != 1:
+        raise MigrationError(
+            "El DDL de cafes no contiene la descripción obligatoria esperada."
+        )
+    nullable_sql = nullable_sql.replace(
+        "length(trim(description)) BETWEEN 1 AND 600",
+        "description IS NULL OR length(trim(description)) BETWEEN 1 AND 600",
+    )
+    temporary_sql, renamed = re.subn(
+        r"^CREATE\s+TABLE\s+(?:\"cafes\"|cafes)",
+        "CREATE TABLE cafes_v4",
+        nullable_sql,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    if renamed != 1:
+        raise MigrationError("No se pudo preparar el DDL temporal de cafes.")
+    indexes = [
+        index[0]
+        for index in connection.execute(
+            """SELECT sql FROM sqlite_master
+               WHERE type='index' AND tbl_name='cafes' AND sql IS NOT NULL
+               ORDER BY name"""
+        )
+    ]
+    columns = [
+        column[1] for column in connection.execute("PRAGMA table_info(cafes)")
+    ]
+    column_list = ", ".join(f'"{column}"' for column in columns)
+    connection.execute(temporary_sql)
+    connection.execute(
+        f"INSERT INTO cafes_v4 ({column_list}) SELECT {column_list} FROM cafes"
+    )
+    connection.execute("DROP TABLE cafes")
+    connection.execute("ALTER TABLE cafes_v4 RENAME TO cafes")
+    for index_sql in indexes:
+        connection.execute(index_sql)
+    if fail_after_cafes:
+        raise MigrationError("Fallo simulado para comprobar rollback.")
+
+
 def upgrade_database(
     database: Path,
     backup: Path,
@@ -227,15 +292,24 @@ def upgrade_database(
     fail_after_cafes: bool = False,
 ) -> str:
     current = inspect_database(database)
-    if current.kind == "v2":
+    if current.kind == "v4":
         return "La base ya está actualizada; no se realizó ninguna escritura."
-    if current.kind == "v2_geo_pending":
+    if current.kind in {"v2_geo_pending", "v3_pending"}:
         integrity_check(backup)
         now = datetime.now(timezone.utc).isoformat()
         connection = _connect(database)
         try:
+            connection.execute("PRAGMA foreign_keys=OFF")
             connection.execute("BEGIN IMMEDIATE")
-            _upgrade_geo_schema(connection)
+            if current.kind == "v2_geo_pending":
+                _upgrade_geo_schema(connection)
+                connection.execute(
+                    "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (3, ?)",
+                    (now,),
+                )
+            _upgrade_description_schema(
+                connection, fail_after_cafes=fail_after_cafes
+            )
             connection.execute(
                 "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                 (SCHEMA_VERSION, now),
@@ -245,9 +319,12 @@ def upgrade_database(
             connection.rollback()
             raise
         finally:
+            connection.execute("PRAGMA foreign_keys=ON")
             connection.close()
         verify_database(database)
-        return "Ampliación geográfica V2 completa."
+        if current.kind == "v2_geo_pending":
+            return "Ampliación geográfica y migración V4 completas."
+        return "Migración V4 completa: description ahora admite NULL."
     if current.kind != "v1":
         raise MigrationError(current.message)
     if not owner_sub.strip():
@@ -325,14 +402,14 @@ def upgrade_database(
     finally:
         connection.close()
     verify_database(database)
-    return f"Migración V2 completa: {len(legacy_rows)} cafeterías importadas."
+    return f"Migración V4 completa: {len(legacy_rows)} cafeterías importadas."
 
 
 def verify_database(database: Path) -> dict[str, int | str]:
     integrity_check(database)
     status = inspect_database(database)
-    if status.kind != "v2":
-        raise MigrationError("La base no quedó en esquema V2.")
+    if status.kind != "v4":
+        raise MigrationError("La base no quedó en esquema V4.")
     with _connect(database) as connection:
         cafes = connection.execute(
             "SELECT COUNT(*) FROM migration_imports WHERE entity_type='cafe'"
@@ -349,8 +426,20 @@ def verify_database(database: Path) -> dict[str, int | str]:
                LEFT JOIN users u ON u.id=v.owner_id
                WHERE c.id IS NULL OR u.id IS NULL OR c.owner_id != v.owner_id"""
         ).fetchone()[0]
-    if orphan_cafes or orphan_visits:
+        foreign_key_errors = list(connection.execute("PRAGMA foreign_key_check"))
+        description_column = next(
+            row for row in connection.execute("PRAGMA table_info(cafes)")
+            if row[1] == "description"
+        )
+        invalid_descriptions = connection.execute(
+            """SELECT COUNT(*) FROM cafes
+               WHERE description IS NOT NULL
+                 AND length(trim(description)) NOT BETWEEN 1 AND 600"""
+        ).fetchone()[0]
+    if orphan_cafes or orphan_visits or foreign_key_errors:
         raise MigrationError("La verificación encontró relaciones huérfanas.")
+    if description_column[3] or invalid_descriptions:
+        raise MigrationError("La descripción no cumple el contrato del esquema V4.")
     return {"integrity": "ok", "cafes_imported": cafes, "visits_imported": visits}
 
 

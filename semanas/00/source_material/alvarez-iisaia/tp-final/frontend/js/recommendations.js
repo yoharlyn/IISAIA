@@ -18,6 +18,20 @@ const BUSINESS_LABELS = {
   CLOSED_TEMPORARILY: "Cerrada temporalmente según Google Maps",
 };
 
+export const RECOMMENDATIONS_PER_PAGE = 4;
+
+export function recommendationPage(items, requestedPage = 1) {
+  const pageCount = Math.ceil(items.length / RECOMMENDATIONS_PER_PAGE);
+  if (pageCount === 0) return { currentPage: 0, pageCount: 0, items: [] };
+  const currentPage = Math.min(Math.max(requestedPage, 1), pageCount);
+  const start = (currentPage - 1) * RECOMMENDATIONS_PER_PAGE;
+  return {
+    currentPage,
+    pageCount,
+    items: items.slice(start, start + RECOMMENDATIONS_PER_PAGE),
+  };
+}
+
 function heading(text) {
   return element("h4", "recommendation-group-title", text);
 }
@@ -111,12 +125,12 @@ function recommendationCard(item) {
   const saveGroup = element("section", "recommendation-group recommendation-save");
   saveGroup.append(
     heading("Antes de guardar"),
-    element("p", "", "El nombre será local. Deberás confirmar nuevamente la dirección con el autocompletado; los datos actuales de Google no se copiarán como un snapshot."),
+    element("p", "", "Verificaremos nuevamente el nombre, la dirección y el barrio antes de abrir el formulario. Sólo se guardará cuando confirmes la acción."),
   );
-  const button = element("button", "button button-primary", "Confirmar datos para guardar");
+  const button = element("button", "button button-primary", "Agregar a mis cafeterías");
   button.type = "button";
   button.addEventListener("click", () => document.dispatchEvent(
-    new CustomEvent("coffee-atlas:prepare-recommendation", { detail: item }),
+    new CustomEvent("coffee-atlas:prepare-recommendation", { detail: { item, trigger: button } }),
   ));
   saveGroup.append(button);
   card.append(saveGroup);
@@ -124,10 +138,47 @@ function recommendationCard(item) {
 }
 
 export function renderRecommendations(container, items) {
-  container.replaceChildren(...items.map(recommendationCard));
+  const grid = element("div", "recommendations-grid");
+  const pagination = element("nav", "recommendations-pagination");
+  pagination.setAttribute("aria-label", "Páginas de recomendaciones");
+  const previous = element("button", "button button-quiet", "Anterior");
+  previous.type = "button";
+  const indicator = element("span", "recommendations-page-status");
+  indicator.setAttribute("aria-current", "page");
+  const next = element("button", "button button-quiet", "Siguiente");
+  next.type = "button";
+  pagination.append(previous, indicator, next);
+  const announcement = element("p", "sr-only");
+  announcement.setAttribute("aria-live", "polite");
+  announcement.setAttribute("aria-atomic", "true");
+  container.replaceChildren(grid, pagination, announcement);
+
   if (!items.length) {
-    container.append(element("p", "empty-state", "No encontramos recomendaciones para ese radio."));
+    grid.append(element("p", "empty-state recommendation-unavailable", "No encontramos recomendaciones para ese radio."));
+    pagination.hidden = true;
+    return;
   }
+
+  let currentPage = 1;
+
+  function showPage(requestedPage, { announce = false, keepFocus = false } = {}) {
+    const page = recommendationPage(items, requestedPage);
+    currentPage = page.currentPage;
+    grid.replaceChildren(...page.items.map(recommendationCard));
+    previous.disabled = currentPage === 1;
+    next.disabled = currentPage === page.pageCount;
+    indicator.textContent = `Página ${currentPage} de ${page.pageCount}`;
+    pagination.hidden = page.pageCount <= 1;
+    if (announce) {
+      announcement.textContent = `Página ${currentPage} de ${page.pageCount}. ${page.items.length} recomendaciones visibles.`;
+    }
+    if (keepFocus && previous.disabled) next.focus({ preventScroll: true });
+    if (keepFocus && next.disabled) previous.focus({ preventScroll: true });
+  }
+
+  previous.addEventListener("click", () => showPage(currentPage - 1, { announce: true, keepFocus: true }));
+  next.addEventListener("click", () => showPage(currentPage + 1, { announce: true, keepFocus: true }));
+  showPage(1);
 }
 
 export function renderRecommendationsUnavailable(container, message) {
